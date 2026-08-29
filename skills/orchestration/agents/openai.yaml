@@ -1,0 +1,4 @@
+interface:
+  display_name: "Orchestra"
+  short_description: "Sol-led Luna, Terra, and Sol routing"
+  default_prompt: "Use $orchestra:orchestration to declare a SELECTIVE ROUTE before task tools, then deliver and verify the result."

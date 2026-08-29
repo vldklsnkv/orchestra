@@ -1,0 +1,37 @@
+{
+  "name": "orchestra",
+  "version": "0.2.0",
+  "description": "Sol-led selective routing across pinned Luna, Terra, and Sol subagents",
+  "author": {
+    "name": "Vlad Kalashnikov",
+    "url": "https://github.com/vldklsnkv"
+  },
+  "homepage": "https://github.com/vldklsnkv/orchestra#readme",
+  "repository": "https://github.com/vldklsnkv/orchestra",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "subagents",
+    "orchestration",
+    "review",
+    "gpt-5.6"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Orchestra",
+    "shortDescription": "Sol-led routing across Luna, Terra, and Sol.",
+    "longDescription": "Keeps Sol / High as the primary architect and manager, routes bounded work to Luna / Max, escalates complex or high-risk work to Terra / High, and uses a fresh read-only Sol / High reviewer for audit or full delivery.",
+    "developerName": "Vlad Kalashnikov",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
+    "defaultPrompt": [
+      "Use $orchestra:orchestration to declare a SELECTIVE ROUTE before tools, then build and verify this task.",
+      "Use Sol / High as manager; route bounded work to Luna / Max and complex work to Terra / High."
+    ]
+  }
+}
