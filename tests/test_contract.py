@@ -25,18 +25,15 @@ STRATEGIES = (
 )
 
 PACKET_FIELDS = (
-    "GOAL",
-    "STRATEGY / ROLE",
-    "IMPLEMENTATION SPEC",
-    "RELEVANT FILES / SYMBOLS / RANGES",
-    "KNOWN FACTS",
-    "RELEVANT EVIDENCE",
-    "INTERFACES / INVARIANTS",
-    "OWNED FILES / SYMBOLS",
-    "DO NOT TOUCH",
-    "DO NOT RESEARCH",
-    "VERIFICATION",
-    "STOP / ESCALATION CONDITIONS",
+    "ROLE",
+    "OBJECTIVE",
+    "CURRENT STATE (authoritative facts)",
+    "CONSTRAINTS / INVARIANTS",
+    "ALLOWED SCOPE",
+    "FORBIDDEN ACTIONS",
+    "RELEVANT FILES / ARTIFACTS",
+    "EXPECTED OUTPUT / VERIFICATION",
+    "STOP / ESCALATION",
 )
 
 
@@ -44,7 +41,7 @@ class OrchestraContractTests(unittest.TestCase):
     def test_manifest_contract(self):
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(manifest["name"], "orchestra")
-        self.assertRegex(manifest["version"], r"^0\.3\.0(?:\+[0-9A-Za-z.-]+)?$")
+        self.assertRegex(manifest["version"], r"^0\.4\.0(?:\+[0-9A-Za-z.-]+)?$")
         self.assertEqual(manifest["skills"], "./skills/")
         self.assertEqual(manifest["repository"], "https://github.com/vldklsnkv/orchestra")
         self.assertEqual(manifest["interface"]["displayName"], "Orchestra")
@@ -129,6 +126,47 @@ class OrchestraContractTests(unittest.TestCase):
         self.assertIn("Luna failure is not required", skill)
         self.assertIn("Do not jump to a speculative", skill)
 
+    def test_native_context_inheritance_contract(self):
+        readme = (ROOT / "README.md").read_text()
+        skill = (SKILL / "SKILL.md").read_text()
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+        operations = (REFERENCES / "operations.md").read_text()
+        combined = skill + contracts + operations
+
+        self.assertIn("Context inheritance:", skill)
+        self.assertIn("fork_turns` is a native spawn decision", skill)
+        self.assertIn(
+            "`none`, a positive integer string `<N>`,\nor `all`", contracts
+        )
+        self.assertIn("Default to `none`", combined)
+        self.assertIn("only when recent turns are materially necessary", combined)
+        self.assertIn("rare fallback", combined)
+        self.assertIn("reviewer always receives `none`", contracts)
+        self.assertIn("defaults to `all` only when omitted", contracts)
+        for name, document in (
+            ("README.md", readme),
+            ("SKILL.md", skill),
+            ("role-contracts.md", contracts),
+            ("operations.md", operations),
+        ):
+            with self.subTest(document=name):
+                normalized = " ".join(document.split())
+                self.assertIn(
+                    "exact full interaction history is itself an explicitly addressed authoritative artifact",
+                    normalized,
+                )
+                self.assertIn(
+                    "no unrecorded constraint may control an allowed action",
+                    normalized.lower(),
+                )
+                self.assertIn(
+                    "inherited turns are supplementary context only",
+                    normalized.lower(),
+                )
+        self.assertIn("none`, limited `<N>`, and `all`", skill)
+        self.assertIn("safety boundary, permission, ownership, invariant", contracts)
+        self.assertIn("every safety and scope boundary", operations)
+
     def test_context_packet_is_complete_and_addressed(self):
         skill = (SKILL / "SKILL.md").read_text()
         contracts = (REFERENCES / "role-contracts.md").read_text()
@@ -137,11 +175,21 @@ class OrchestraContractTests(unittest.TestCase):
         for field in PACKET_FIELDS:
             self.assertIn(field, skill)
             self.assertIn(field, contracts)
-        for phrase in ("paths", "symbols", "ranges", "evidence locations"):
+        for phrase in ("paths", "symbols", "ranges", "evidence"):
             self.assertIn(phrase, skill.lower())
-        self.assertIn("distinct investigation scope", contracts)
-        self.assertIn("prevents rediscovery", operations)
+        self.assertIn("DO NOT RESEARCH", contracts)
+        self.assertIn("non-overlapping", contracts)
+        self.assertIn("CURRENT STATE (authoritative facts)", operations)
         self.assertIn("Do not claim token savings", operations)
+        for field in (
+            "STATUS / RESULT:",
+            "DECISION / VERDICT:",
+            "EVIDENCE / ARTIFACTS:",
+            "FILES CHANGED:",
+            "UNRESOLVED RISKS / AMBIGUITIES:",
+            "STOP / ESCALATION REASON:",
+        ):
+            self.assertIn(field, contracts)
 
     def test_stop_retry_and_rethink_contract(self):
         skill = (SKILL / "SKILL.md").read_text()
@@ -164,7 +212,7 @@ class OrchestraContractTests(unittest.TestCase):
 
         for verdict in ("ship", "fix-first", "rethink"):
             self.assertIn(f"`{verdict}`", skill)
-        self.assertIn("Do not trust summaries", contracts)
+        self.assertIn("full manager transcript", contracts)
         self.assertIn("ORCHESTRA RUN", skill)
         for field in (
             "Strategy:",
@@ -173,12 +221,23 @@ class OrchestraContractTests(unittest.TestCase):
             "Escalations:",
             "Retries:",
             "Review:",
-            "Context:",
+            "Lanes:",
+            "Packets:",
+            "Host metrics:",
             "Result:",
             "Verification:",
         ):
             self.assertIn(field, combined)
-        self.assertIn("Do not fabricate token, duration, or cost metrics", skill)
+        self.assertIn("unavailable/not-exposed", combined)
+        self.assertIn("never infer, parse private transcripts", combined)
+        for metric in (
+            "input_tokens",
+            "cached_input_tokens",
+            "output_tokens",
+            "tool_calls",
+            "duration",
+        ):
+            self.assertIn(metric, combined)
 
     def test_dry_runs_cover_all_strategies_and_packets(self):
         dry_runs = (REFERENCES / "dry-runs.md").read_text()
@@ -186,13 +245,77 @@ class OrchestraContractTests(unittest.TestCase):
             self.assertIn(f"## {index}.", dry_runs)
             self.assertIn(f"Strategy: {strategy}", dry_runs)
 
-        self.assertIn("No worker is spawned, so no\nContext Packet exists", dry_runs)
+        self.assertIn("No worker is spawned, so no Context Packet exists", dry_runs)
         self.assertIn("Decomposable: yes (5 independent lanes)", dry_runs)
         self.assertIn("Review: yes", dry_runs)
-        self.assertIn("Reviewer packet after Sol verification", dry_runs)
+        self.assertIn("fork_turns: none", dry_runs)
         self.assertIn("minimal discriminating", dry_runs.lower())
-        self.assertIn("Sol arbitrates", dry_runs)
+        self.assertIn("arbitrates against one rubric", dry_runs)
         self.assertIn("DO NOT RESEARCH", dry_runs)
+
+        scenarios = {}
+        for label in (
+            "A. Isolated specialist -> none",
+            "B. Specialist + reviewer -> scoped/none and evidence-only",
+            "C. Context-dependent continuation -> limited N",
+            "D. Genuinely unsafe reconstruction -> deliberate all fallback",
+        ):
+            start = dry_runs.index(f"### {label}")
+            next_heading = dry_runs.find("\n### ", start + 1)
+            scenarios[label[0]] = dry_runs[start: next_heading if next_heading != -1 else None]
+
+        expected_boundary = "objective, exact allowed scope and ownership"
+        self.assertIn("Mode: `fork_turns: none`", scenarios["A"])
+        self.assertIn("Reason: no prior turn is material", scenarios["A"])
+        self.assertIn(expected_boundary, scenarios["A"])
+
+        self.assertIn("Specialist mode: `fork_turns: none`", scenarios["B"])
+        self.assertIn("Reviewer mode: `fork_turns: none`", scenarios["B"])
+        self.assertIn("fresh evidence-only review", scenarios["B"])
+        self.assertIn("full manager transcript", scenarios["B"])
+
+        self.assertIn('Mode: `fork_turns: "3"`', scenarios["C"])
+        self.assertIn("last `3` turns", scenarios["C"])
+        self.assertIn("inherited turns cannot supply a", scenarios["C"])
+
+        self.assertIn("Mode: `fork_turns: all`", scenarios["D"])
+        normalized_d = " ".join(scenarios["D"].split())
+        with self.subTest(document="dry-runs.md scenario D"):
+            self.assertIn(
+                "complete user-confirmed multi-turn decision transcript is the explicit authoritative artifact",
+                normalized_d,
+            )
+            self.assertIn("transcript's artifact address", normalized_d)
+            self.assertIn("every constraint and safety boundary", normalized_d)
+            self.assertIn(
+                "no unrecorded constraint controls an allowed action",
+                normalized_d.lower(),
+            )
+            self.assertIn("inherited turns only supplement the packet", normalized_d.lower())
+
+    def test_role_spawn_templates_localize_inheritance_modes(self):
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+
+        expected_templates = {
+            "orchestra_luna_implementer": "Spawn Luna exactly:",
+            "orchestra_terra_implementer": "Spawn Terra exactly:",
+        }
+        for role, heading in expected_templates.items():
+            start = contracts.index(heading)
+            end = contracts.index("~~~", contracts.index("~~~", start) + 3) + 3
+            template = contracts[start:end]
+            self.assertIn(f"agent_type: {role}", template)
+            self.assertIn(
+                "fork_turns: <explicit none | positive integer string N | all>",
+                template,
+            )
+
+        reviewer_start = contracts.index("After manager verification, spawn exactly:")
+        reviewer_end = contracts.index("~~~", contracts.index("~~~", reviewer_start) + 3) + 3
+        reviewer_template = contracts[reviewer_start:reviewer_end]
+        self.assertIn("agent_type: orchestra_sol_reviewer", reviewer_template)
+        self.assertIn("fork_turns: none", reviewer_template)
+        self.assertNotIn("positive integer string N", reviewer_template)
 
     def test_no_obsolete_mode_contracts_in_shipped_text(self):
         shipped = [

@@ -2,8 +2,9 @@
 
 Orchestra is a small strategy-first orchestration plugin for Codex. Sol / High remains
 the manager and final acceptor, but it chooses how to organize work before choosing a
-worker. Delegated lanes receive narrow, addressed Context Packets so they can use known
-facts and evidence without repeating repository-wide discovery.
+worker. Delegated lanes explicitly select native `fork_turns` and receive narrow,
+addressed Context Packets so they can use known facts and evidence without repeating
+repository-wide discovery.
 
 Orchestra optimizes total useful work, not agent count. It does not claim token or time
 savings without measured host evidence.
@@ -41,28 +42,37 @@ first. Trivial work stays `solo`; a reviewer is not added by habit.
 
 No additional agent roles are required by the seven strategies.
 
-## Context Packets
+## Context policy and packets
 
-Every worker gets an explicit packet containing:
+Before every spawn, Orchestra records one native inheritance choice: `none`, a positive
+integer-string `N`, or `all`. `none` is the default; limited `N` is allowed only when
+recent turns are materially necessary; use `all` only as a deliberate rare fallback when
+reconstruction from the packet is unsafe because the exact full interaction history is
+itself an explicitly addressed authoritative artifact that cannot be safely paraphrased.
+Any non-`none` choice has a concise reason. Reviewers always use `none`; omission is
+forbidden because the native interface defaults it to `all`. Every packet still records
+all safety and scope boundaries; no unrecorded constraint may control an allowed action,
+and inherited turns are supplementary context only.
+
+Every worker gets an explicit self-contained packet containing:
 
 ```text
-GOAL
-STRATEGY / ROLE
-IMPLEMENTATION SPEC
-RELEVANT FILES / SYMBOLS / RANGES
-KNOWN FACTS
-RELEVANT EVIDENCE
-INTERFACES / INVARIANTS
-OWNED FILES / SYMBOLS
-DO NOT TOUCH
-DO NOT RESEARCH
-VERIFICATION
-STOP / ESCALATION CONDITIONS
+ROLE
+OBJECTIVE
+CURRENT STATE (authoritative facts)
+CONSTRAINTS / INVARIANTS
+ALLOWED SCOPE
+FORBIDDEN ACTIONS
+RELEVANT FILES / ARTIFACTS
+EXPECTED OUTPUT / VERIFICATION
+STOP / ESCALATION
 ```
 
 Paths, symbols, ranges, commands, and evidence locations are preferred over long prose.
-Parallel lanes require non-overlapping ownership and distinct evidence scopes. Review
-preserves useful independent checking of critical claims instead of trusting summaries.
+`FORBIDDEN ACTIONS` includes `DO NOT RESEARCH` and exact outside ownership. Parallel
+lanes require non-overlapping ownership and distinct evidence scopes. Review is a
+minimal evidence-focused packet; it excludes manager transcripts, implementation-agent
+reasoning, long discussions, and conclusion-framed summaries.
 
 ## Routing and stop rules
 
@@ -80,10 +90,11 @@ experiment establishes the cause.
 
 ## Lightweight run record
 
-At completion or stop, Orchestra records selected strategy and roles, agent count,
-escalations, retries, review use, packet file/range/evidence counts, result status, and
-verification result. It does not fabricate token, duration, or cost metrics when the
-host API does not expose them.
+At completion or stop, Orchestra records strategy, agents, each lane's role/model and
+`fork_turns`, retries/escalations, review, packet file/range/evidence counts, result,
+and verification. It records `input_tokens`, `cached_input_tokens`, `output_tokens`,
+`tool_calls`, and `duration` only when directly exposed by the host; otherwise it writes
+`unavailable/not-exposed` and never infers or parses private transcripts.
 
 ## Installation
 
@@ -124,8 +135,9 @@ sh scripts/install-agents.sh --check
 ```
 
 The contract suite covers the manifest, exact three-role pins, seven strategies,
-modifiers, Context Packets, escalation rules, dry-run examples, installer behavior, and
-shell syntax. Runtime metadata can be inspected with:
+modifiers, native inheritance policy, compact packets, escalation rules, targeted
+dry-run examples, installer behavior, and shell syntax. Runtime metadata can be
+inspected with:
 
 ```sh
 sh scripts/inspect-agent-runtime.sh --help

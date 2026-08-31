@@ -42,11 +42,26 @@ Decomposable: no | yes (<independent lane count>)
 Implementation: Sol | Luna | Terra | Luna after architecture freeze | mixed
 Parallel: no | yes
 Review: no | yes
+Context inheritance: none | limited <N> | all (rare)
+Inheritance reason: <required for limited <N> or all; otherwise none>
 ~~~
 
 No task tool may precede this declaration. A later declaration may change strategy,
 roles, parallelism, or review only when new evidence justifies it; record that evidence.
-Never silently downgrade risk or substitute a role, model, effort, or review policy.
+`fork_turns` is a native spawn decision, never an omitted default: choose exactly
+`none`, a positive integer string `<N>`, or `all`. Default to `none`. Choose limited
+`<N>` only when recent turns are materially necessary and record why; use `all` only as
+a deliberate rare fallback when reconstruction from the packet is unsafe because the exact
+full interaction history is itself an explicitly addressed authoritative artifact that
+cannot be safely paraphrased. Every packet still records all safety and scope boundaries;
+no unrecorded constraint may control an allowed action. Independent review always uses
+`none`. Never silently downgrade risk or substitute a role, model, effort, review, or
+inheritance policy.
+
+For every mode (`none`, limited `<N>`, and `all`), the packet remains the complete
+authoritative safety and scope boundary. Inherited turns are supplementary context only:
+they never supply or replace a missing permission, ownership boundary,
+invariant, acceptance criterion, settled fact, or other safety constraint.
 
 ## Seven base strategies
 
@@ -93,34 +108,39 @@ review. Public metadata for role, model, and effort is authoritative. Use the lo
 inspector only for an omitted model or effort. Missing, conflicting, unavailable, or
 unobservable evidence stops that lane; never silently substitute another role.
 
-## Send explicit Context Packets
+## Send compact Context Packets
 
-Every worker receives a narrow addressed packet with all fields below:
+Every worker receives a narrow, self-contained, addressed packet with all fields below:
 
 ~~~text
-GOAL
-STRATEGY / ROLE
-IMPLEMENTATION SPEC
-RELEVANT FILES / SYMBOLS / RANGES
-KNOWN FACTS
-RELEVANT EVIDENCE
-INTERFACES / INVARIANTS
-OWNED FILES / SYMBOLS
-DO NOT TOUCH
-DO NOT RESEARCH
-VERIFICATION
-STOP / ESCALATION CONDITIONS
+ROLE
+OBJECTIVE
+CURRENT STATE (authoritative facts)
+CONSTRAINTS / INVARIANTS
+ALLOWED SCOPE
+FORBIDDEN ACTIONS
+RELEVANT FILES / ARTIFACTS
+EXPECTED OUTPUT / VERIFICATION
+STOP / ESCALATION
 ~~~
 
 Point to paths, symbols, ranges, commands, and evidence locations. Prefer a precise
-source address that the worker can inspect over a long prose copy of the file. Include
-only the context slice required by that lane. `DO NOT RESEARCH` must name already-settled
-areas the worker must not rediscover. Parallel lanes require non-overlapping ownership
-and distinct research/evidence scopes.
+source address that the worker can inspect over a long prose copy or retained
+transcript. Include only the context slice required by that lane. `FORBIDDEN ACTIONS`
+must preserve exact ownership, `DO NOT RESEARCH` areas already settled, and non-overlap
+with parallel lanes. Include a `Context inheritance` line in `ROLE`: it must match the
+route and give the concise non-`none` reason.
+
+This complete-packet rule applies equally to `none`, limited `<N>`, and `all`.
+Inherited context may supplement the packet, but never substitute for any packet field
+or its authoritative safety, scope, evidence, verification, and stop boundaries.
 
 Worker reports are claims. Sol inspects the complete relevant diff, changed-file scope,
 requested checks, and artifact or runtime evidence. Do not duplicate the selected
-worker's implementation in the primary session.
+worker's implementation in the primary session. Require the compact worker return
+contract: status/result; decision or verdict when applicable; evidence/artifacts; files
+changed; unresolved risks/ambiguities; stop/escalation reason; and context-use counts
+when useful. This is a return format, not a state machine.
 
 ## Stop, retry, and escalate deliberately
 
@@ -153,11 +173,12 @@ step, or continuation requires new authority or a material user decision, stop a
 
 ## Independent review
 
-With `Review: yes`, spawn a new Sol / High reviewer only after manager verification.
-Give it the task contract, relevant change set, interfaces and constraints, verification
-evidence, and the minimum source context needed to check critical claims. The reviewer
-must inspect actual files and evidence rather than trust an implementer summary. Useful
-independent checking at critical boundaries is intentional; unrelated rediscovery is not.
+With `Review: yes`, spawn a new Sol / High reviewer only after manager verification,
+with `fork_turns: none`. Give it only an evidence-focused packet: review objective,
+authoritative constraints, exact change/evidence, acceptance criteria, minimum source
+addresses, forbidden actions/context, and exact verdict return. Explicitly forbid the
+full manager transcript, implementation-agent reasoning, long discussions, and
+conclusion-framed summaries. The reviewer must inspect actual files and evidence.
 
 The reviewer remains behaviorally read-only and returns exactly `ship`, `fix-first`, or
 `rethink`. It never implements fixes. Any correction invalidates the verdict and requires
@@ -173,13 +194,16 @@ ORCHESTRA RUN
 Strategy: <base strategy>
 Roles: <selected roles, or Sol only>
 Agents: <count>
+Lanes: <lane role/model fork_turns; or Sol-only>
 Escalations: <count>
 Retries: <count>
 Review: used | not-used
-Context: files=<count>, ranges=<count>, evidence-items=<count>
+Packets: worker files=<count>, ranges=<count>, evidence-items=<count>; reviewer files=<count>, ranges=<count>, evidence-items=<count>
+Host metrics: input_tokens=<value> cached_input_tokens=<value> output_tokens=<value> tool_calls=<value> duration=<value> | unavailable/not-exposed
 Result: complete | partial | blocked | rethink
 Verification: pass | fail | partial (<short evidence>)
 ~~~
 
-Do not fabricate token, duration, or cost metrics. Add them only if a future host API
-provides reliable values.
+Record optional host metrics only when directly exposed. Otherwise record
+`unavailable/not-exposed`; never infer values, parse private transcripts, or build a
+workaround. This record is lightweight telemetry, not a state machine.

@@ -12,15 +12,23 @@ the three installed TOMLs pin execution and review roles.
 | orchestra_terra_implementer | gpt-5.6-terra | high | Expert reasoning or complex/high-risk implementation lanes |
 | orchestra_sol_reviewer | gpt-5.6-sol | high | Optional fresh review; requests read-only sandbox |
 
-Spawn every selected lane with fresh context:
+Select native context inheritance for every lane explicitly:
 
 ~~~text
 agent_type: orchestra_luna_implementer | orchestra_terra_implementer | orchestra_sol_reviewer
-fork_turns: none
+fork_turns: none | <positive integer string N> | all
 ~~~
 
-Do not attach model or reasoning overrides. Missing, conflicting, unavailable, or
-unobservable role/model/effort is a hard stop; never substitute another role.
+The interface defaults to `all` when omitted, so omission is forbidden. Default to
+`none`. Use `<N>` only for materially necessary recent turns and record the concise
+reason in `SELECTIVE ROUTE` and the worker packet. Use `all` only as a deliberate rare
+fallback when reconstruction from the packet is unsafe because the exact full interaction
+history is itself an explicitly addressed authoritative artifact that cannot be safely
+paraphrased. Every packet still records all safety and scope boundaries; no unrecorded
+constraint may control an allowed action; inherited turns are supplementary context only.
+Independent review is always `fork_turns: none`. Do not attach model or reasoning
+overrides. Missing, conflicting, unavailable, or unobservable role/model/effort is a hard
+stop; never substitute another role.
 
 ## Installation and exactness checks
 
@@ -92,6 +100,20 @@ Then perform these checks before spawning:
   authorize a fix until a discriminating experiment confirms the cause.
 - `review`: add the fresh Sol check only when review is declared.
 
+Choose the inheritance decision before spawning; it is separate from strategy and role.
+For every mode (`none`, limited `<N>`, or `all`), every worker receives a complete,
+self-contained authoritative packet. It must record the objective; ownership and
+allowed scope; constraints and invariants; evidence/artifact addresses; forbidden
+actions; `DO NOT RESEARCH` boundaries; expected verification; and stop conditions.
+Inherited turns are supplementary context only and can never supply or replace a
+missing safety boundary, permission, ownership, invariant, acceptance criterion, or
+settled fact. Use `all` only as a deliberate rare fallback when reconstruction from the
+packet is unsafe because the exact full interaction history is itself an explicitly
+addressed authoritative artifact that cannot be safely paraphrased; even then, the
+packet records every safety and scope boundary. No unrecorded constraint may control an
+allowed action. Do not use retained context as a substitute for exact ownership,
+evidence addresses, or `DO NOT RESEARCH` boundaries.
+
 Do not allocate agents merely because capacity exists. For a trivial task, the
 preflight itself is evidence that `solo` is cheaper.
 
@@ -126,16 +148,17 @@ fallback.
 Before sending a worker packet, Sol verifies:
 
 1. Every path, symbol, range, command, and evidence location is task-relevant.
-2. `KNOWN FACTS` contains settled conclusions rather than a session transcript.
-3. `DO NOT RESEARCH` prevents rediscovery of already-settled areas.
-4. `OWNED FILES / SYMBOLS` is exact and does not overlap another active lane.
+2. `CURRENT STATE (authoritative facts)` contains settled conclusions, not a transcript.
+3. `FORBIDDEN ACTIONS` preserves `DO NOT RESEARCH` and outside-ownership boundaries.
+4. `ALLOWED SCOPE` is exact and does not overlap another active lane.
 5. Investigation lanes test different hypotheses or evidence scopes.
 6. The worker can verify its own deliverable without reopening the whole repository.
+7. `fork_turns` is explicit and any non-`none` selection has a concise material reason.
 
 Do not claim token savings. The observable goal is less duplicated exploration,
 context transfer, agent use, review, and failed iteration. Report packet shape as file,
-range, and evidence-item counts; optional character counts are allowed only when
-directly measured.
+range, and evidence-item counts. Do not parse private transcripts or build a workaround
+for metrics unavailable from the host.
 
 ## Parent verification and integration
 
@@ -187,16 +210,20 @@ ORCHESTRA RUN
 Strategy: <strategy>
 Roles: <roles>
 Agents: <count>
+Lanes: <lane role/model fork_turns; or Sol-only>
 Escalations: <count>
 Retries: <count>
 Review: used | not-used
-Context: files=<count>, ranges=<count>, evidence-items=<count>
+Packets: worker files=<count>, ranges=<count>, evidence-items=<count>; reviewer files=<count>, ranges=<count>, evidence-items=<count>
+Host metrics: input_tokens=<value> cached_input_tokens=<value> output_tokens=<value> tool_calls=<value> duration=<value> | unavailable/not-exposed
 Result: complete | partial | blocked | rethink
 Verification: pass | fail | partial (<evidence>)
 ~~~
 
-Do not infer token, duration, or cost metrics when the host does not provide them.
-This record is intentionally lightweight and is not a workflow engine or state machine.
+Record host metrics only when the host exposes the exact values. Otherwise write
+`unavailable/not-exposed`; never infer, parse private transcripts, or extend the
+inspector as a workaround. This record is intentionally lightweight and is not a
+workflow engine or state machine.
 
 ## Maintainer verification
 

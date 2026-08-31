@@ -1,262 +1,173 @@
 # Native Codex role contracts
 
-Use these contracts with Orchestra's three namespaced, role-pinned native custom
-agents. Do not add a role for every strategy. A strategy describes how work is
-organized; a role describes which pinned agent is appropriate for a lane.
+Strategies organize work; the three namespaced custom agents supply the pinned role for
+a lane. Do not add roles or runtime infrastructure for a strategy.
 
-## Routing decision contract
+## Routing and native context contract
 
-Before task tools, Sol evaluates task size, ambiguity, reasoning complexity,
-decomposability, risk or blast radius, objective verifiability, and orchestration
-overhead. Emit:
+Before task tools, Sol emits `SELECTIVE ROUTE` with strategy, risk, ambiguity,
+decomposability, implementation, parallelism, review, and:
 
 ~~~text
-SELECTIVE ROUTE
-Strategy: solo | delegate | expert | parallel | explore | plan-execute | diagnose-fix
-Risk: low | medium | high
-Ambiguity: low | medium | high
-Decomposable: no | yes (<independent lane count>)
-Implementation: Sol | Luna | Terra | Luna after architecture freeze | mixed
-Parallel: no | yes
-Review: no | yes
+Context inheritance: none | limited <N> | all (rare)
+Inheritance reason: <required for limited <N> or all; otherwise none>
 ~~~
 
-If orchestration overhead is comparable to the task, use `solo`. A later change must
-name the new evidence. Never silently downgrade risk, add agents, or change roles.
+Use the native `fork_turns` contract exactly: `none`, a positive integer string `<N>`,
+or `all`. It defaults to `all` only when omitted, so Orchestra must always select it
+explicitly. Default `none`; use limited `<N>` only when recent turns are materially
+necessary; use `all` only as a deliberate rare fallback when reconstruction from the
+packet is unsafe because the exact full interaction history is itself an explicitly
+addressed authoritative artifact that cannot be safely paraphrased. A reviewer always receives `none`.
 
-## Role selection after strategy
+Every worker packet is complete in every inheritance mode: `none`, `<N>`, or `all`.
+Inherited turns are supplementary context only. They never provide or replace a safety boundary, permission, ownership, invariant, acceptance criterion, or settled fact missing from the packet; no unrecorded constraint may control an allowed action.
 
-- Sol / High is always manager and final acceptor.
-- Luna / Max executes bounded or frozen specifications.
-- Terra / High handles expert reasoning or implementation where judgment, complexity,
-  risk, context, or blast radius is material.
-- Fresh Sol / High is used only by the `review` modifier after manager verification.
+Sol / High remains manager and final acceptor. Luna / Max executes bounded or frozen
+work, Terra / High handles material judgment, complexity, risk, context, or blast
+radius, and fresh Sol / High is used only after manager verification for `review`.
+Terra may be selected immediately; a failed Luna attempt is never required. Parallel
+lanes have distinct deliverables, ownership, and evidence scopes.
 
-Terra may be selected immediately. Do not require a failed Luna attempt. In
-`plan-execute`, Sol or Terra may settle architecture, but Luna should execute the
-mechanical frozen plan. In `explore`, give lanes distinct hypotheses or evidence
-scopes. In `parallel`, ownership must not overlap.
+## Compact worker Context Packet
 
-## Context Packet contract
-
-Every Luna or Terra prompt must contain this complete packet. Replace every
-placeholder; use `none` only when it is genuinely empty.
+Every Luna or Terra prompt contains this complete contract. Replace placeholders; use
+`none` only where genuinely empty. It must be self-contained, not a manager transcript.
 
 ~~~text
-GOAL
-<Observable outcome and why it matters.>
-
-STRATEGY / ROLE
-Strategy: <base strategy>
+ROLE
 Role: Luna bounded worker | Terra expert worker
-Lane: <unique lane name and its relationship to other lanes>
+Strategy: <base strategy>; Lane: <unique lane name>
+Context inheritance: none | <positive integer string N> | all
+Inheritance reason: <required unless none>
 
-IMPLEMENTATION SPEC
-<Frozen steps and decisions. For investigation lanes, state the hypothesis or evidence
-scope and the required decision output instead of prescribing a conclusion.>
+OBJECTIVE
+<Observable outcome or decision required.>
 
-RELEVANT FILES / SYMBOLS / RANGES
-- <path>: <symbol or narrow range and why it is relevant>
+CURRENT STATE (authoritative facts)
+- <settled fact, approved decision, exact failure, or evidence address>
 
-KNOWN FACTS
-- <settled fact the worker may rely on>
+CONSTRAINTS / INVARIANTS
+- <interface, behavior, safety, compatibility, or parallel non-overlap constraint>
 
-RELEVANT EVIDENCE
-- <command output, failure, artifact, or evidence location>
+ALLOWED SCOPE
+- <exact owned files or symbols; implementation steps or bounded evidence question>
 
-INTERFACES / INVARIANTS
-- <signature, schema, behavior, safety boundary, or compatibility requirement>
+FORBIDDEN ACTIONS
+- Do not modify: <outside ownership>
+- DO NOT RESEARCH: <settled areas, decisions, or other-lane evidence scopes>
+- Do not retain or reconstruct unrelated transcript/history.
 
-OWNED FILES / SYMBOLS
-- <exact file or symbol this lane may modify>
+RELEVANT FILES / ARTIFACTS
+- <path>: <symbol/range and relevance>
+- <command output, artifact, or evidence location>
 
-DO NOT TOUCH
-- <files, symbols, state, data, or systems outside ownership>
+EXPECTED OUTPUT / VERIFICATION
+- Run: <exact command>. Success: <concrete result>.
+- Inspect: <exact diff/artifact/runtime state>. Success: <concrete evidence>.
 
-DO NOT RESEARCH
-- <already-settled repository areas or hypotheses that must not be rediscovered>
-
-VERIFICATION
-- Run: <exact command>
-  Success: <concrete expected result>
-- Inspect: <exact diff, artifact, or runtime state>
-  Success: <concrete expected evidence>
-
-STOP / ESCALATION CONDITIONS
-- Stop if <lane-specific ambiguity, ownership, risk, or evidence condition>.
+STOP / ESCALATION
+- Stop if <ambiguity, ownership conflict, risk boundary, or invalidated approach>.
 - Return control if the same failure repeats without new evidence.
-
-RETURN
-Return exact commands and actual evidence. A completion claim without evidence is
-invalid.
-
-WORK REPORT
-STATUS: complete | partial | blocked | rethink
-GOAL: <one-line restatement>
-CHANGES: <file-by-file summary from the actual diff, or none>
-EVIDENCE: <new facts and exact evidence locations>
-VERIFIED: <exact commands and concrete output>
-JUDGMENT CALLS: <decisions left open by the packet, or none>
-GAPS: <unfinished work or none>
-CONTEXT USED: files=<count>, ranges=<count>, evidence-items=<count>
 ~~~
 
-Address context with paths, symbols, ranges, commands, and evidence locations. Do not
-paste a repository-wide narrative when the worker can inspect a precise source slice.
-Each parallel lane needs a distinct investigation scope and non-overlapping
-`OWNED FILES / SYMBOLS`. Workers preserve concurrent edits and never revert unrelated work.
+Use paths, symbols, ranges, commands, and evidence addresses rather than copied
+repository prose. Parallel lanes require non-overlapping `ALLOWED SCOPE` and distinct
+`DO NOT RESEARCH`/evidence scopes. Workers preserve concurrent edits and never revert
+unrelated work. The completed packet itself always records the authoritative objective,
+allowed scope, constraints, evidence/artifact addresses, forbidden actions, `DO NOT
+RESEARCH` boundaries, verification, and stop conditions; inherited context cannot
+weaken or fill in any of them.
 
-## Luna stop signal
-
-Luna must not improvise across a material architectural boundary. When any stop
-condition is met, return:
+## Worker return contract
 
 ~~~text
-WORKER STOP
-TYPE: specification-error | misclassified | scope-conflict | systemic-failure | rethink
-TRIGGER: <architectural choice, ambiguity, wider scope, judgment, invariant, or failure>
-EVIDENCE: <exact file, range, command, or artifact>
-OWNED WORK PRESERVED: <completed work and state>
-MANAGER DECISION NEEDED: <precise decision or escalation>
-SAFE NEXT STEP: <one bounded action, or none>
+WORK REPORT
+STATUS / RESULT: complete | partial | blocked | rethink
+DECISION / VERDICT: <when applicable, otherwise none>
+EVIDENCE / ARTIFACTS: <exact commands, output, paths, or addresses>
+FILES CHANGED: <actual files, or none>
+UNRESOLVED RISKS / AMBIGUITIES: <items, or none>
+STOP / ESCALATION REASON: <reason, or none>
+CONTEXT USED: files=<count>, ranges=<count>, evidence-items=<count> [optional]
 ~~~
 
-Rules:
+This lightweight report describes the result; it is not a state machine.
 
-- A wrong or incomplete specification permits at most one corrected Luna retry.
-- Misclassified bounded work escalates directly to Terra; a retry is not required.
-- Repeated failure without new evidence stops the lane.
-- Evidence that invalidates the architecture returns `rethink`, not another local fix.
+## Stop signal and role lanes
 
-## Luna / Max lane
+On an architectural choice, material ambiguity, wider scope, judgment-heavy decision,
+high-risk invariant, or systemic verification failure, return `WORKER STOP` with type,
+trigger, exact evidence address, preserved owned work, manager decision needed, and one
+safe next step. A specification defect permits at most one corrected Luna retry.
+Misclassified bounded work escalates directly to Terra; a retry is not required.
+Repeated failure without new evidence stops. Evidence invalidating the architecture
+returns `rethink`, not another local fix.
 
-Use for bounded implementation in `delegate`, mechanical lanes in `parallel`, bounded
-evidence collection in `explore` or `diagnose-fix`, and execution after architecture
-freeze in `plan-execute`.
-
-Spawn exactly:
+Spawn Luna exactly:
 
 ~~~text
 agent_type: orchestra_luna_implementer
-fork_turns: none
+fork_turns: <explicit none | positive integer string N | all>
 ~~~
 
-Do not attach model or reasoning overrides. Prompt:
-
-~~~text
-ROLE
-Act as Orchestra's bounded worker. Execute only the supplied Context Packet. Do not
-rediscover settled areas or make unassigned architectural choices.
-
-<paste and complete the Context Packet contract>
-~~~
-
-## Terra / High lane
-
-Use for `expert`, expert lanes in `parallel` or `explore`, difficult root-cause
-reasoning in `diagnose-fix`, or architecture reasoning in `plan-execute`. Select it
-immediately when complexity or risk is already evident.
-
-Spawn exactly:
+Spawn Terra exactly:
 
 ~~~text
 agent_type: orchestra_terra_implementer
-fork_turns: none
+fork_turns: <explicit none | positive integer string N | all>
 ~~~
 
-Do not attach model or reasoning overrides. Prompt:
+Do not attach model or reasoning overrides. The prompt begins with `ROLE` and the
+completed compact worker Context Packet.
 
-~~~text
-ROLE
-Act as Orchestra's expert worker. Resolve the supplied judgment-heavy Context Packet
-within its ownership and evidence boundaries. Do not widen scope silently.
-
-<paste and complete the Context Packet contract>
-~~~
-
-## Parallel lane contract
-
-Before spawning, Sol must prove all of the following:
-
-- Each lane has a distinct observable deliverable.
-- Owned files or symbols do not overlap.
-- Investigation hypotheses or evidence scopes do not duplicate one another.
-- No lane requires another lane's intermediate result to make progress.
-- Integration and combined verification remain owned by Sol.
-- Agent count reflects useful independent work, not available capacity.
-
-If any condition fails, use a sequential strategy. Parallel lanes may use Luna, Terra,
-or both according to lane complexity; role selection remains strategy-secondary.
-
-## Diagnose-fix evidence gate
-
-Before a fix, the active lane or Sol must record:
-
-~~~text
-DIAGNOSIS
-Reproduction: <exact command or steps and observed failure>
-Evidence: <relevant output or artifact>
-Hypothesis: <falsifiable causal claim>
-Experiment: <minimal action that distinguishes this cause>
-Result: confirmed | rejected | inconclusive
-~~~
-
-Only `confirmed` permits the causal fix. `rejected` requires a different hypothesis;
-`inconclusive` requires better evidence, not a speculative patch. After the fix, rerun
-the reproduction as regression verification plus relevant focused checks.
+For `diagnose-fix`, include a `DIAGNOSIS` block with reproduction, evidence,
+falsifiable hypothesis, minimal discriminating experiment, and result. Only a
+confirmed result permits the causal fix.
 
 ## Fresh Sol / High review modifier
 
-After manager verification, spawn a new native thread exactly:
+After manager verification, spawn exactly:
 
 ~~~text
 agent_type: orchestra_sol_reviewer
 fork_turns: none
 ~~~
 
-Do not attach model or reasoning overrides. Observe the actual role, pin, sandbox
-policy, and permission profile. Prompt:
+Do not attach model or reasoning overrides. The reviewer is behaviorally read-only and
+receives this minimal evidence-focused packet:
 
 ~~~text
-ROLE
-Act as the fresh independent reviewer. Remain strictly read-only: do not edit files,
-implement fixes, or broaden scope. Do not trust summaries where direct inspection is
-possible.
+REVIEW OBJECTIVE
+<Acceptance decision to independently check.>
 
-TASK CONTRACT
-<User goal and acceptance conditions.>
+AUTHORITATIVE CONSTRAINTS
+- <invariants, interfaces, safety boundaries, excluded scope>
 
-RELEVANT CHANGE SET
-<Exact allowed files plus complete relevant diff or explicit base/head revisions.>
+EXACT CHANGE / EVIDENCE
+- <allowed files plus complete relevant diff/base-head and command output/artifact>
 
-INTERFACES / CONSTRAINTS
-- <Compatibility, invariants, repository rules, safety boundaries, excluded scope.>
+ACCEPTANCE CRITERIA
+- <observable required behavior and regression checks>
 
-VERIFICATION EVIDENCE
-- <command> -> <actual manager-session output or artifact location>
+MINIMUM SOURCE ADDRESSES
+- <paths, symbols, and ranges needed to test critical claims>
 
-MINIMUM SOURCE CONTEXT
-- <paths, symbols, and ranges required to independently test critical claims>
+FORBIDDEN ACTIONS / CONTEXT
+- Do not edit, implement fixes, or broaden scope.
+- Do not receive or request the full manager transcript, implementation-agent reasoning,
+  long discussions, or conclusion-framed summaries.
 
-REVIEW
-Inspect the actual files, relevant change set, evidence, and critical boundaries. Judge
-correctness, completeness, regressions, scope discipline, interface preservation, test
-adequacy, and material risk.
-
+EXACT VERDICT RETURN
 SOL REVIEW
 VERDICT: ship | fix-first | rethink
 REASON: <decisive evidence-based reason>
-FINDINGS: <precise file references and required fixes, or none>
+FINDINGS: <precise addresses and required fixes, or none>
 RESIDUAL RISK: <most important remaining risk, or none>
 ~~~
 
-Any post-review correction invalidates the verdict. Sol reviewing Sol is context-clean
-independent checking, not cross-model-family independence.
-
-Use observed isolation, not requested isolation:
-
-- With observed `read-only`, proceed with enforced isolation.
-- If the host broadens it, proceed only when hard isolation is not required, the prompt
-  forbids edits, and Sol records exact before/after repository and artifact state.
-- If isolation is unobservable, hard isolation is required, or mutation occurs, stop
-  the lane and do not claim read-only review.
+The reviewer inspects actual files and evidence rather than trusting a conclusion.
+Any correction invalidates its verdict and requires manager re-verification and a fresh
+review. Use observed sandbox policy: if read-only is not observed and hard isolation is
+needed, stop review; otherwise record exact before/after state and never claim enforced
+isolation.

@@ -1,7 +1,7 @@
 {
   "name": "orchestra",
-  "version": "0.3.0",
-  "description": "Sol-led strategy routing with scoped context packets and pinned subagents",
+  "version": "0.4.0",
+  "description": "Sol-led strategy routing with explicit native context policy and pinned subagents",
   "author": {
     "name": "Vlad Kalashnikov",
     "url": "https://github.com/vldklsnkv"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Orchestra",
-    "shortDescription": "Strategy-first orchestration with scoped context.",
-    "longDescription": "Keeps Sol / High as manager, selects a workflow strategy before choosing pinned Luna, Terra, or fresh Sol lanes, and limits delegated context to explicit evidence-backed packets.",
+    "shortDescription": "Strategy-first orchestration with explicit context policy.",
+    "longDescription": "Keeps Sol / High as manager, selects a workflow strategy and native context inheritance before choosing pinned Luna, Terra, or fresh Sol lanes, and limits delegated context to evidence-backed packets.",
     "developerName": "Vlad Kalashnikov",
     "category": "Productivity",
     "capabilities": [
@@ -31,7 +31,7 @@
     "logo": "./assets/icon.png",
     "defaultPrompt": [
       "Use $orchestra:orchestration to choose a strategy before tools, then execute and verify this task.",
-      "Keep context packets scoped; add workers or review only when their value exceeds orchestration overhead."
+      "Select native fork_turns explicitly; keep packets evidence-scoped and reviewers context-clean."
     ]
   }
 }
