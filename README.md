@@ -53,6 +53,7 @@ Orchestra confirms the primary model and effort before any delegated lane. If ru
 - Only agents selected by that route are preflighted and spawned.
 - Workers receive explicit ownership, interfaces, constraints, and verification requirements.
 - The primary session independently checks changed-file scope, tests, runtime evidence, and repository state.
+- Evidence-backed stagnation triggers a strategic checkpoint: preserve progress, invalidate the failed approach, and begin a bounded new cycle only with a materially different next step and success signal.
 - A reviewer never implements its own fixes. `fix-first` returns the work to the designated implementation lane and requires a new fresh review.
 - Observed sandbox and permission limits are reported accurately; Orchestra does not claim enforced isolation when it is unavailable.
 

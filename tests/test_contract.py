@@ -19,7 +19,7 @@ class OrchestraContractTests(unittest.TestCase):
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(manifest["name"], "orchestra")
         self.assertRegex(
-            manifest["version"], r"^0\.2\.0(?:\+[0-9A-Za-z.-]+)?$"
+            manifest["version"], r"^0\.2\.1(?:\+[0-9A-Za-z.-]+)?$"
         )
         self.assertEqual(manifest["skills"], "./skills/")
         self.assertEqual(manifest["repository"], "https://github.com/vldklsnkv/orchestra")
@@ -85,6 +85,26 @@ class OrchestraContractTests(unittest.TestCase):
         ):
             self.assertIn(role, contracts)
             self.assertIn(role, operations)
+
+    def test_skill_breaks_only_evidence_backed_stalled_loops(self):
+        skill = (SKILL / "SKILL.md").read_text()
+        operations = (SKILL / "references" / "operations.md").read_text()
+
+        for content in (skill, operations):
+            normalized = " ".join(content.lower().split())
+            self.assertIn("STRATEGIC CHECKPOINT", content)
+            self.assertIn("two consecutive materially similar", normalized)
+            self.assertIn("materially different", normalized)
+            self.assertIn("success signal", normalized)
+            self.assertIn("preserve", normalized)
+
+        skill_normalized = " ".join(skill.split())
+        operations_normalized = " ".join(operations.split())
+        self.assertIn("Do not abandon a productive path", skill_normalized)
+        self.assertIn("stop and ask the user", skill_normalized)
+        self.assertIn(
+            "Never use a checkpoint to bypass", operations_normalized
+        )
 
     def test_installer_is_fail_closed_and_selective(self):
         self.assertTrue(os.access(INSTALLER, os.X_OK))

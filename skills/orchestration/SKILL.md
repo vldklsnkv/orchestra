@@ -85,6 +85,38 @@ Treat worker reports as claims. Confirm the complete diff, changed-file scope, r
 checks, and artifact/runtime evidence in the parent session. Do not duplicate the
 selected implementer's work in the primary session.
 
+## Break stalled iteration loops
+
+Continue an implementation or verification cycle while each pass adds evidence,
+reduces uncertainty, or completes bounded work. Do not abandon a productive path only
+because a task is long or a fixed iteration count was reached.
+
+Trigger a strategic checkpoint when evidence shows stagnation, including two
+consecutive materially similar correction attempts that leave the same failure or
+no-progress state, an invalidated core assumption, oscillation between prior states,
+or local fixes that expose an architectural mismatch. Do not keep applying small
+variations of the same fix after a checkpoint is justified.
+
+At the checkpoint, pause the current loop and emit:
+
+~~~text
+STRATEGIC CHECKPOINT
+trigger: <observed stagnation evidence>
+preserved: <completed work and reusable evidence>
+invalidated: <failed assumption or approach>
+next step: <materially different, bounded action>
+success signal: <evidence that will justify continuing>
+~~~
+
+The next step must materially change the hypothesis, architecture, decomposition,
+verification method, or risk-evidenced route. Preserve completed work and evidence;
+do not restart from scratch or repeat already-settled checks. Start a new bounded
+cycle only when the checkpoint identifies a credible better path and success signal.
+If no materially different safe step exists, or progress requires new authority or a
+material user choice, stop and ask the user instead of continuing the loop. A route
+change still requires the normal declared, evidence-backed escalation and may never
+silently downgrade the route.
+
 ## Review only when the route includes it
 
 For `audit` and `full`, after parent verification, spawn a new native Sol / High

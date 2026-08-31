@@ -1,6 +1,6 @@
 {
   "name": "orchestra",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Sol-led selective routing across pinned Luna, Terra, and Sol subagents",
   "author": {
     "name": "Vlad Kalashnikov",

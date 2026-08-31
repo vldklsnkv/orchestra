@@ -177,6 +177,31 @@ fresh Sol reviewer reviews. In full, one selected implementer completes the spec
 root verifies, and a fresh Sol reviewer reviews. Auxiliary work substitutes for root
 work; it does not duplicate it. A reviewer never fixes its own findings.
 
+## Strategic checkpoint protocol
+
+A long task is not itself stalled. Keep iterating while a pass produces new evidence,
+reduces uncertainty, completes a bounded unit, or changes the observed failure. Pause
+for a strategic checkpoint when one of these evidence-backed conditions occurs:
+
+- Two consecutive materially similar corrections leave the same failure or no-progress
+  state.
+- A core assumption behind the current plan is invalidated.
+- The work oscillates between already-observed states.
+- Repeated local fixes reveal that the architecture, decomposition, verification
+  method, or selected route no longer fits the task.
+
+Capture the trigger, preserved work and evidence, invalidated approach, one materially
+different bounded next step, and its success signal in the `STRATEGIC CHECKPOINT`
+block defined in the main skill. A different next step changes at least one of the
+hypothesis, architecture, decomposition, verification method, or evidence-backed
+route; a renamed retry or another small variation of the failed fix does not qualify.
+
+The checkpoint is a control boundary, not a progress reset. Preserve completed work,
+avoid rerunning settled checks, and give the new cycle a bounded objective. If there is
+no credible different step, if the same checkpoint recurs without new evidence, or if
+continuation needs authority outside the task, stop and ask the user. Never use a
+checkpoint to bypass route-escalation, review, permission, or acceptance rules.
+
 ## Maintainer verification
 
 From the repository root, run:
