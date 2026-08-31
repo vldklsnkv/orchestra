@@ -9,21 +9,47 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "orchestration"
+REFERENCES = SKILL / "references"
 AGENTS = ROOT / "agents"
 INSTALLER = ROOT / "scripts" / "install-agents.sh"
 INSPECTOR = ROOT / "scripts" / "inspect-agent-runtime.sh"
+
+STRATEGIES = (
+    "solo",
+    "delegate",
+    "expert",
+    "parallel",
+    "explore",
+    "plan-execute",
+    "diagnose-fix",
+)
+
+PACKET_FIELDS = (
+    "GOAL",
+    "STRATEGY / ROLE",
+    "IMPLEMENTATION SPEC",
+    "RELEVANT FILES / SYMBOLS / RANGES",
+    "KNOWN FACTS",
+    "RELEVANT EVIDENCE",
+    "INTERFACES / INVARIANTS",
+    "OWNED FILES / SYMBOLS",
+    "DO NOT TOUCH",
+    "DO NOT RESEARCH",
+    "VERIFICATION",
+    "STOP / ESCALATION CONDITIONS",
+)
 
 
 class OrchestraContractTests(unittest.TestCase):
     def test_manifest_contract(self):
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(manifest["name"], "orchestra")
-        self.assertRegex(
-            manifest["version"], r"^0\.2\.1(?:\+[0-9A-Za-z.-]+)?$"
-        )
+        self.assertRegex(manifest["version"], r"^0\.3\.0(?:\+[0-9A-Za-z.-]+)?$")
         self.assertEqual(manifest["skills"], "./skills/")
         self.assertEqual(manifest["repository"], "https://github.com/vldklsnkv/orchestra")
         self.assertEqual(manifest["interface"]["displayName"], "Orchestra")
+        self.assertIn("strategy", manifest["description"].lower())
+        self.assertIn("context", manifest["description"].lower())
 
         for field in ("composerIcon", "logo"):
             asset = manifest["interface"][field]
@@ -33,6 +59,8 @@ class OrchestraContractTests(unittest.TestCase):
         prompts = manifest["interface"]["defaultPrompt"]
         self.assertGreaterEqual(len(prompts), 1)
         self.assertLessEqual(len(prompts), 3)
+        self.assertTrue(any("strategy" in prompt.lower() for prompt in prompts))
+        self.assertTrue(any("context" in prompt.lower() for prompt in prompts))
         for prompt in prompts:
             self.assertLessEqual(len(prompt), 128)
 
@@ -59,25 +87,34 @@ class OrchestraContractTests(unittest.TestCase):
 
         for filename, fields in expected.items():
             content = (AGENTS / filename).read_text()
-            self.assertIn("developer_instructions = \"\"\"", content)
+            self.assertIn('developer_instructions = """', content)
+            self.assertIn("evidence", content.lower())
             for field, value in fields.items():
                 match = re.search(rf'(?m)^{re.escape(field)} = "([^"]+)"$', content)
                 self.assertIsNotNone(match, f"{filename}: missing {field}")
                 self.assertEqual(match.group(1), value)
 
-    def test_skill_enforces_sol_led_selective_routing(self):
+        luna = (AGENTS / "orchestra-luna-implementer.toml").read_text()
+        terra = (AGENTS / "orchestra-terra-implementer.toml").read_text()
+        reviewer = (AGENTS / "orchestra-sol-reviewer.toml").read_text()
+        self.assertIn("Context Packet", luna)
+        self.assertIn("at most one corrected Luna retry", luna)
+        self.assertIn("selected immediately", terra)
+        self.assertIn("rethink signal", terra)
+        self.assertIn("Do not merely trust", reviewer)
+
+    def test_skill_is_strategy_first(self):
         skill = (SKILL / "SKILL.md").read_text()
-        contracts = (SKILL / "references" / "role-contracts.md").read_text()
-        operations = (SKILL / "references" / "operations.md").read_text()
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+        operations = (REFERENCES / "operations.md").read_text()
 
         self.assertTrue(skill.startswith("---\nname: orchestration\n"))
+        self.assertIn("Choose strategy before role", skill)
         self.assertIn("SELECTIVE ROUTE", skill)
         self.assertIn("gpt-5.6-sol with high reasoning", skill)
-        self.assertIn("Luna / Max", skill)
-        self.assertIn("Terra / High", skill)
-        self.assertIn("fresh read-only Sol / High", skill)
-        for route in ("solo", "delegate", "audit", "full"):
-            self.assertIn(f"`{route}`", skill)
+        self.assertIn("orchestration cost is comparable", skill)
+        for strategy in STRATEGIES:
+            self.assertIn(f"`{strategy}`", skill)
         for role in (
             "orchestra_luna_implementer",
             "orchestra_terra_implementer",
@@ -86,25 +123,97 @@ class OrchestraContractTests(unittest.TestCase):
             self.assertIn(role, contracts)
             self.assertIn(role, operations)
 
-    def test_skill_breaks_only_evidence_backed_stalled_loops(self):
+        self.assertIn("Composable modifiers", skill)
+        self.assertIn("`review`", skill)
+        self.assertIn("`parallel`", skill)
+        self.assertIn("Luna failure is not required", skill)
+        self.assertIn("Do not jump to a speculative", skill)
+
+    def test_context_packet_is_complete_and_addressed(self):
         skill = (SKILL / "SKILL.md").read_text()
-        operations = (SKILL / "references" / "operations.md").read_text()
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+        operations = (REFERENCES / "operations.md").read_text()
 
-        for content in (skill, operations):
-            normalized = " ".join(content.lower().split())
-            self.assertIn("STRATEGIC CHECKPOINT", content)
-            self.assertIn("two consecutive materially similar", normalized)
-            self.assertIn("materially different", normalized)
-            self.assertIn("success signal", normalized)
-            self.assertIn("preserve", normalized)
+        for field in PACKET_FIELDS:
+            self.assertIn(field, skill)
+            self.assertIn(field, contracts)
+        for phrase in ("paths", "symbols", "ranges", "evidence locations"):
+            self.assertIn(phrase, skill.lower())
+        self.assertIn("distinct investigation scope", contracts)
+        self.assertIn("prevents rediscovery", operations)
+        self.assertIn("Do not claim token savings", operations)
 
-        skill_normalized = " ".join(skill.split())
-        operations_normalized = " ".join(operations.split())
-        self.assertIn("Do not abandon a productive path", skill_normalized)
-        self.assertIn("stop and ask the user", skill_normalized)
-        self.assertIn(
-            "Never use a checkpoint to bypass", operations_normalized
+    def test_stop_retry_and_rethink_contract(self):
+        skill = (SKILL / "SKILL.md").read_text()
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+        combined = " ".join((skill + contracts).split()).lower()
+
+        self.assertIn("at most one corrected luna retry", combined)
+        self.assertIn("no luna retry is required", combined)
+        self.assertIn("same failure repeats without new evidence", combined)
+        self.assertIn("invalidates the architecture", combined)
+        self.assertIn("worker stop", combined)
+        self.assertIn("strategic checkpoint", combined)
+        self.assertIn("materially different", combined)
+
+    def test_review_and_run_metadata_contract(self):
+        skill = (SKILL / "SKILL.md").read_text()
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+        operations = (REFERENCES / "operations.md").read_text()
+        combined = skill + contracts + operations
+
+        for verdict in ("ship", "fix-first", "rethink"):
+            self.assertIn(f"`{verdict}`", skill)
+        self.assertIn("Do not trust summaries", contracts)
+        self.assertIn("ORCHESTRA RUN", skill)
+        for field in (
+            "Strategy:",
+            "Roles:",
+            "Agents:",
+            "Escalations:",
+            "Retries:",
+            "Review:",
+            "Context:",
+            "Result:",
+            "Verification:",
+        ):
+            self.assertIn(field, combined)
+        self.assertIn("Do not fabricate token, duration, or cost metrics", skill)
+
+    def test_dry_runs_cover_all_strategies_and_packets(self):
+        dry_runs = (REFERENCES / "dry-runs.md").read_text()
+        for index, strategy in enumerate(STRATEGIES, start=1):
+            self.assertIn(f"## {index}.", dry_runs)
+            self.assertIn(f"Strategy: {strategy}", dry_runs)
+
+        self.assertIn("No worker is spawned, so no\nContext Packet exists", dry_runs)
+        self.assertIn("Decomposable: yes (5 independent lanes)", dry_runs)
+        self.assertIn("Review: yes", dry_runs)
+        self.assertIn("Reviewer packet after Sol verification", dry_runs)
+        self.assertIn("minimal discriminating", dry_runs.lower())
+        self.assertIn("Sol arbitrates", dry_runs)
+        self.assertIn("DO NOT RESEARCH", dry_runs)
+
+    def test_no_obsolete_mode_contracts_in_shipped_text(self):
+        shipped = [
+            ROOT / "README.md",
+            ROOT / "NOTICE.md",
+            ROOT / ".codex-plugin" / "plugin.json",
+            SKILL / "SKILL.md",
+            SKILL / "agents" / "openai.yaml",
+            *REFERENCES.glob("*.md"),
+            *AGENTS.glob("*.toml"),
+        ]
+        combined = "\n".join(path.read_text() for path in shipped)
+        obsolete = (
+            "mode: solo | delegate | audit | full",
+            "four exact modes",
+            "audit/full",
+            "delegate/full",
+            "for `audit` and `full`",
         )
+        for phrase in obsolete:
+            self.assertNotIn(phrase, combined.lower())
 
     def test_installer_is_fail_closed_and_selective(self):
         self.assertTrue(os.access(INSTALLER, os.X_OK))
@@ -161,6 +270,34 @@ class OrchestraContractTests(unittest.TestCase):
             )
             self.assertNotEqual(terra_only.returncode, 0)
             self.assertEqual(terra.read_bytes(), before)
+
+            update = subprocess.run(
+                [str(INSTALLER), "--target-dir", str(target), "--update"],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(update.returncode, 0, update.stderr)
+            self.assertIn("UPDATED:", update.stdout)
+            backups = list(target.glob(".orchestra-terra-backup.*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_bytes(), before)
+            self.assertEqual(
+                terra.read_bytes(),
+                (AGENTS / "orchestra-terra-implementer.toml").read_bytes(),
+            )
+
+            foreign_before = terra.read_text().replace(
+                'name = "orchestra_terra_implementer"',
+                'name = "foreign_terra_implementer"',
+            )
+            terra.write_text(foreign_before)
+            refused = subprocess.run(
+                [str(INSTALLER), "--target-dir", str(target), "--update"],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertEqual(terra.read_text(), foreign_before)
 
     def test_attribution_and_documentation(self):
         notice = (ROOT / "NOTICE.md").read_text()

@@ -1,113 +1,138 @@
 # Native Codex role contracts
 
-Use these contracts with Orchestra's namespaced, role-pinned native custom agents.
-They do not launch a nested Codex CLI or change global default-agent routing. Adapt
-every placeholder without removing a required field.
+Use these contracts with Orchestra's three namespaced, role-pinned native custom
+agents. Do not add a role for every strategy. A strategy describes how work is
+organized; a role describes which pinned agent is appropriate for a lane.
 
-For task-scoped preflight, runtime evidence, sandbox interpretation, and maintainer
-commands, use [operations.md](operations.md).
+## Routing decision contract
 
-## Selective route and required preflight
-
-Before the first task tool call, the root emits one machine-auditable route:
+Before task tools, Sol evaluates task size, ambiguity, reasoning complexity,
+decomposability, risk or blast radius, objective verifiability, and orchestration
+overhead. Emit:
 
 ~~~text
 SELECTIVE ROUTE
-mode: solo | delegate | audit | full
-risk: <concise, task-specific rationale>
+Strategy: solo | delegate | expert | parallel | explore | plan-execute | diagnose-fix
+Risk: low | medium | high
+Ambiguity: low | medium | high
+Decomposable: no | yes (<independent lane count>)
+Implementation: Sol | Luna | Terra | Luna after architecture freeze | mixed
+Parallel: no | yes
+Review: no | yes
 ~~~
 
-Solo is the default; one auxiliary is the default maximum. Full is an explicit broad
-or high-risk exception. A later route declaration may only escalate after newly
-observed risk justifies it and supplies that evidence; never silently downgrade.
+If orchestration overhead is comparable to the task, use `solo`. A later change must
+name the new evidence. Never silently downgrade risk, add agents, or change roles.
 
-Confirm Sol / High in the primary session, then preflight only auxiliaries selected by
-the route: none for solo; Luna / Max or Terra / High for delegate; fresh Sol / High
-for audit; and one selected implementer plus fresh Sol reviewer for full. Cache each
-successful check only for the task. After spawning, complete the selected role's
-routing and reviewer-isolation checks before accepting the result:
+## Role selection after strategy
 
-1. Require the selected exact native role and fresh-context spawn contract.
-2. Observe the selected role, model, and effort through public spawn/details metadata
-   first, using the local runtime inspector only for omitted fields. Accept Luna /
-   Max for bounded delegate/full implementation, Terra / High for higher-risk
-   delegate/full implementation, and Sol / High for audit/full review.
-3. For the reviewer, capture actual sandbox policy and permission profile types.
+- Sol / High is always manager and final acceptor.
+- Luna / Max executes bounded or frozen specifications.
+- Terra / High handles expert reasoning or implementation where judgment, complexity,
+  risk, context, or blast radius is material.
+- Fresh Sol / High is used only by the `review` modifier after manager verification.
 
-A missing, stale, unsafe, conflicting, unavailable, inconsistent, or unobservable
-role/model/effort stops the native lane. Never silently fall back. Model and effort
-are pinned by custom-agent TOML, so omit native per-spawn overrides.
+Terra may be selected immediately. Do not require a failed Luna attempt. In
+`plan-execute`, Sol or Terra may settle architecture, but Luna should execute the
+mechanical frozen plan. In `explore`, give lanes distinct hypotheses or evidence
+scopes. In `parallel`, ownership must not overlap.
 
-## Shared implementation contract
+## Context Packet contract
 
-Every Luna or Terra prompt must contain all five sections:
+Every Luna or Terra prompt must contain this complete packet. Replace every
+placeholder; use `none` only when it is genuinely empty.
 
 ~~~text
-OBJECTIVE
+GOAL
 <Observable outcome and why it matters.>
 
-FILES AND OWNERSHIP
-You own only:
-- <exact file or module>
+STRATEGY / ROLE
+Strategy: <base strategy>
+Role: Luna bounded worker | Terra expert worker
+Lane: <unique lane name and its relationship to other lanes>
 
-You are not alone in the codebase. Other agents or the user may be editing concurrently.
-Preserve their edits, do not revert unrelated work, and adapt to changes already present.
-Do not modify files outside your ownership.
+IMPLEMENTATION SPEC
+<Frozen steps and decisions. For investigation lanes, state the hypothesis or evidence
+scope and the required decision output instead of prescribing a conclusion.>
 
-INTERFACES
-- <Signatures, types, schemas, commands, or behavior that must remain compatible.>
+RELEVANT FILES / SYMBOLS / RANGES
+- <path>: <symbol or narrow range and why it is relevant>
 
-CONSTRAINTS
-- <Repository conventions, safety boundaries, excluded scope, and settled decisions.>
+KNOWN FACTS
+- <settled fact the worker may rely on>
+
+RELEVANT EVIDENCE
+- <command output, failure, artifact, or evidence location>
+
+INTERFACES / INVARIANTS
+- <signature, schema, behavior, safety boundary, or compatibility requirement>
+
+OWNED FILES / SYMBOLS
+- <exact file or symbol this lane may modify>
+
+DO NOT TOUCH
+- <files, symbols, state, data, or systems outside ownership>
+
+DO NOT RESEARCH
+- <already-settled repository areas or hypotheses that must not be rediscovered>
 
 VERIFICATION
 - Run: <exact command>
   Success: <concrete expected result>
-- Inspect: <exact file, diff, or generated artifact>
+- Inspect: <exact diff, artifact, or runtime state>
   Success: <concrete expected evidence>
 
-RETURN
-Return exact commands and actual evidence. A completion claim without evidence is invalid.
+STOP / ESCALATION CONDITIONS
+- Stop if <lane-specific ambiguity, ownership, risk, or evidence condition>.
+- Return control if the same failure repeats without new evidence.
 
-IMPLEMENTATION REPORT
-STATUS: complete | partial | blocked
-OBJECTIVE: <one-line restatement>
-CHANGES: <file-by-file summary from the actual diff>
-VERIFIED: <exact commands plus concrete output evidence>
-JUDGMENT CALLS: <decisions the specification left open, or none>
-GAPS: <unfinished work, ambiguity, or none>
+RETURN
+Return exact commands and actual evidence. A completion claim without evidence is
+invalid.
+
+WORK REPORT
+STATUS: complete | partial | blocked | rethink
+GOAL: <one-line restatement>
+CHANGES: <file-by-file summary from the actual diff, or none>
+EVIDENCE: <new facts and exact evidence locations>
+VERIFIED: <exact commands and concrete output>
+JUDGMENT CALLS: <decisions left open by the packet, or none>
+GAPS: <unfinished work or none>
+CONTEXT USED: files=<count>, ranges=<count>, evidence-items=<count>
 ~~~
 
-The primary session must inspect the diff and rerun verification itself.
+Address context with paths, symbols, ranges, commands, and evidence locations. Do not
+paste a repository-wide narrative when the worker can inspect a precise source slice.
+Each parallel lane needs a distinct investigation scope and non-overlapping
+`OWNED FILES / SYMBOLS`. Workers preserve concurrent edits and never revert unrelated work.
 
-## Exact mode contracts
+## Luna stop signal
 
-- `solo`: root plans, implements, tests, and self-reviews. Spawn no auxiliary.
-- `delegate`: one selected Luna / Max or Terra / High implementer executes the complete
-  five-part specification. The root verifies. Do not spawn a fresh reviewer.
-- `audit`: root implements and verifies. A fresh read-only Sol / High reviewer inspects
-  the accumulated diff. Spawn no implementer. On `fix-first`, the root implements the
-  correction, re-verifies, and obtains a new fresh reviewer.
-- `full`: use only for an explicit broad or high-risk exception. One selected Luna /
-  Max or Terra / High implementer executes the complete specification, the root
-  verifies, and a fresh read-only Sol / High reviewer inspects the accumulated diff.
-  On `fix-first`, the selected implementer handles the correction, the root
-  re-verifies, and a new fresh reviewer inspects the result.
+Luna must not improvise across a material architectural boundary. When any stop
+condition is met, return:
 
-Auxiliary work substitutes for root work; it must not duplicate it. A route can
-escalate only with newly observed, recorded risk; it never silently downgrades.
-Solo and delegate have no fresh reviewer or review-driven correction unless a newly
-observed, risk-evidenced route escalation is declared; never silently add one.
+~~~text
+WORKER STOP
+TYPE: specification-error | misclassified | scope-conflict | systemic-failure | rethink
+TRIGGER: <architectural choice, ambiguity, wider scope, judgment, invariant, or failure>
+EVIDENCE: <exact file, range, command, or artifact>
+OWNED WORK PRESERVED: <completed work and state>
+MANAGER DECISION NEEDED: <precise decision or escalation>
+SAFE NEXT STEP: <one bounded action, or none>
+~~~
 
-## Luna / Max - bounded delegate/full implementation lane
+Rules:
 
-Use this lane only when a declared delegate or full route selects it for bounded,
-fully specified work. The installed role pins GPT-5.6 Luna at max reasoning. It must
-surface ambiguity and failed checks rather than redesigning the architecture. A first
-result that demonstrates newly observed judgment-heavy, high-risk, wide-blast-radius,
-or misclassified work may justify a declared Terra escalation; do not force a retry
-first. If the specification itself was incomplete or wrong, return a precise
-correction for one corrected Luna attempt. That retry is not a prerequisite for Terra.
+- A wrong or incomplete specification permits at most one corrected Luna retry.
+- Misclassified bounded work escalates directly to Terra; a retry is not required.
+- Repeated failure without new evidence stops the lane.
+- Evidence that invalidates the architecture returns `rethink`, not another local fix.
+
+## Luna / Max lane
+
+Use for bounded implementation in `delegate`, mechanical lanes in `parallel`, bounded
+evidence collection in `explore` or `diagnose-fix`, and execution after architecture
+freeze in `plan-execute`.
 
 Spawn exactly:
 
@@ -116,24 +141,21 @@ agent_type: orchestra_luna_implementer
 fork_turns: none
 ~~~
 
-Do not attach per-spawn model or reasoning fields. Prompt:
+Do not attach model or reasoning overrides. Prompt:
 
 ~~~text
 ROLE
-Act as Orchestra's default routine implementation worker. Execute the supplied
-specification within the settled architecture, preserve every stated interface and
-constraint, and surface ambiguity instead of redesigning the architecture.
+Act as Orchestra's bounded worker. Execute only the supplied Context Packet. Do not
+rediscover settled areas or make unassigned architectural choices.
 
-<paste and complete the Shared implementation contract>
+<paste and complete the Context Packet contract>
 ~~~
 
-## Terra / High - higher-risk delegate/full implementation lane
+## Terra / High lane
 
-Use this lane only when a declared delegate or full route selects judgment-heavy,
-high-risk, context-heavy, or wide-blast-radius work, including risk revealed by a
-first Luna result. The installed role pins GPT-5.6 Terra at high reasoning. A
-corrected Luna attempt is reserved for a specification error and is not a prerequisite
-for Terra.
+Use for `expert`, expert lanes in `parallel` or `explore`, difficult root-cause
+reasoning in `diagnose-fix`, or architecture reasoning in `plan-execute`. Select it
+immediately when complexity or risk is already evident.
 
 Spawn exactly:
 
@@ -142,54 +164,84 @@ agent_type: orchestra_terra_implementer
 fork_turns: none
 ~~~
 
-Do not attach per-spawn model or reasoning fields. Prompt:
+Do not attach model or reasoning overrides. Prompt:
 
 ~~~text
 ROLE
-Act as Orchestra's explicit high-complexity escalation worker. Resolve the supplied
-specification within the settled architecture, preserve every stated interface and
-constraint, and surface ambiguity instead of redesigning the architecture.
+Act as Orchestra's expert worker. Resolve the supplied judgment-heavy Context Packet
+within its ownership and evidence boundaries. Do not widen scope silently.
 
-<paste and complete the Shared implementation contract>
+<paste and complete the Context Packet contract>
 ~~~
 
-## Fresh Sol / High - requested-read-only audit/full reviewer
+## Parallel lane contract
 
-Only for an audit or full route, after parent verification, spawn a new native thread
-exactly:
+Before spawning, Sol must prove all of the following:
+
+- Each lane has a distinct observable deliverable.
+- Owned files or symbols do not overlap.
+- Investigation hypotheses or evidence scopes do not duplicate one another.
+- No lane requires another lane's intermediate result to make progress.
+- Integration and combined verification remain owned by Sol.
+- Agent count reflects useful independent work, not available capacity.
+
+If any condition fails, use a sequential strategy. Parallel lanes may use Luna, Terra,
+or both according to lane complexity; role selection remains strategy-secondary.
+
+## Diagnose-fix evidence gate
+
+Before a fix, the active lane or Sol must record:
+
+~~~text
+DIAGNOSIS
+Reproduction: <exact command or steps and observed failure>
+Evidence: <relevant output or artifact>
+Hypothesis: <falsifiable causal claim>
+Experiment: <minimal action that distinguishes this cause>
+Result: confirmed | rejected | inconclusive
+~~~
+
+Only `confirmed` permits the causal fix. `rejected` requires a different hypothesis;
+`inconclusive` requires better evidence, not a speculative patch. After the fix, rerun
+the reproduction as regression verification plus relevant focused checks.
+
+## Fresh Sol / High review modifier
+
+After manager verification, spawn a new native thread exactly:
 
 ~~~text
 agent_type: orchestra_sol_reviewer
 fork_turns: none
 ~~~
 
-The installed role pins Sol / High and requests a read-only sandbox. Do not attach
-per-spawn model or reasoning fields. Observe the actual role, pin, sandbox policy, and
-permission profile before accepting its verdict.
-
-Prompt:
+Do not attach model or reasoning overrides. Observe the actual role, pin, sandbox
+policy, and permission profile. Prompt:
 
 ~~~text
 ROLE
-Act as the fresh final reviewer. Remain strictly read-only: do not edit files, implement
-fixes, or broaden scope.
+Act as the fresh independent reviewer. Remain strictly read-only: do not edit files,
+implement fixes, or broaden scope. Do not trust summaries where direct inspection is
+possible.
 
-STATED GOAL
-<The user's requested outcome.>
+TASK CONTRACT
+<User goal and acceptance conditions.>
 
-ACCUMULATED CHANGE SET
-<Exact allowed files plus complete working-tree diff, or explicit base/head revisions.>
+RELEVANT CHANGE SET
+<Exact allowed files plus complete relevant diff or explicit base/head revisions.>
 
-INTERFACES AND CONSTRAINTS
-- <Compatibility, repository rules, safety boundaries, and excluded scope.>
+INTERFACES / CONSTRAINTS
+- <Compatibility, invariants, repository rules, safety boundaries, excluded scope.>
 
 VERIFICATION EVIDENCE
-- <command> -> <actual primary-session output evidence>
-- <artifact or diff inspection> -> <actual evidence>
+- <command> -> <actual manager-session output or artifact location>
+
+MINIMUM SOURCE CONTEXT
+- <paths, symbols, and ranges required to independently test critical claims>
 
 REVIEW
-Inspect the actual files and accumulated change set. Judge correctness, completeness,
-regressions, scope discipline, interface preservation, test adequacy, and material risk.
+Inspect the actual files, relevant change set, evidence, and critical boundaries. Judge
+correctness, completeness, regressions, scope discipline, interface preservation, test
+adequacy, and material risk.
 
 SOL REVIEW
 VERDICT: ship | fix-first | rethink
@@ -198,14 +250,13 @@ FINDINGS: <precise file references and required fixes, or none>
 RESIDUAL RISK: <most important remaining risk, or none>
 ~~~
 
-If any fix is made after review, discard the verdict and run a new fresh review.
-Sol reviewing Sol is context-clean, not cross-model-family independence.
+Any post-review correction invalidates the verdict. Sol reviewing Sol is context-clean
+independent checking, not cross-model-family independence.
 
 Use observed isolation, not requested isolation:
 
 - With observed `read-only`, proceed with enforced isolation.
-- If the host broadens it, proceed only when hard isolation is not required, the
-  prompt forbids edits, and the parent captures and verifies exact before-and-after
-  repository and artifact state. Report the broader policy and profile.
-- If isolation is unobservable, hard isolation is required, or any mutation occurs,
-  stop the lane and do not hide or repair the mutation under that verdict.
+- If the host broadens it, proceed only when hard isolation is not required, the prompt
+  forbids edits, and Sol records exact before/after repository and artifact state.
+- If isolation is unobservable, hard isolation is required, or mutation occurs, stop
+  the lane and do not claim read-only review.

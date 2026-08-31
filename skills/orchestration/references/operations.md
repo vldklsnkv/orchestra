@@ -1,58 +1,38 @@
 # Native operations
 
 This is the maintainer and operator reference for Orchestra's native custom-agent
-workflow. Keep the README user-facing; use this page when installing, delegating,
-inspecting routing, or validating a release.
+workflow. Keep strategy choice separate from role choice: strategies organize work;
+the three installed TOMLs pin execution and review roles.
 
 ## Role pins and spawn contract
 
-The installed TOMLs are the source of truth:
-
 | Role type | Model | Effort | Use |
 |---|---|---|---|
-| orchestra_luna_implementer | gpt-5.6-luna | max | Delegate/full bounded routine implementation |
-| orchestra_terra_implementer | gpt-5.6-terra | high | Delegate/full judgment-heavy or high-risk implementation |
-| orchestra_sol_reviewer | gpt-5.6-sol | high | Audit/full fresh review; requests read-only sandbox |
+| orchestra_luna_implementer | gpt-5.6-luna | max | Bounded or frozen implementation and bounded evidence lanes |
+| orchestra_terra_implementer | gpt-5.6-terra | high | Expert reasoning or complex/high-risk implementation lanes |
+| orchestra_sol_reviewer | gpt-5.6-sol | high | Optional fresh review; requests read-only sandbox |
 
-Native spawn requests name the role and use a fresh context:
+Spawn every selected lane with fresh context:
 
 ~~~text
-agent_type: orchestra_luna_implementer
+agent_type: orchestra_luna_implementer | orchestra_terra_implementer | orchestra_sol_reviewer
 fork_turns: none
 ~~~
 
-Use the Terra type only when the selected delegate or full route needs it:
-
-~~~text
-agent_type: orchestra_terra_implementer
-fork_turns: none
-~~~
-
-Use a fresh Sol reviewer only for audit or full after parent verification:
-
-~~~text
-agent_type: orchestra_sol_reviewer
-fork_turns: none
-~~~
-
-Do not attach model or reasoning overrides. A missing, conflicting, unavailable, or
+Do not attach model or reasoning overrides. Missing, conflicting, unavailable, or
 unobservable role/model/effort is a hard stop; never substitute another role.
 
-## Selective route declaration, preflight, and caching
+## Installation and exactness checks
 
-The primary session must be Sol / High. Companion installation is separate from task
-routing because plugin installation does not register user-owned TOMLs.
-
-At installation or update time, run the repository-relative installer and its exactness
-check:
+Plugin installation does not register user-owned companion TOMLs. At installation or
+update time, run from the repository:
 
 ~~~sh
 sh scripts/install-agents.sh
 sh scripts/install-agents.sh --check
 ~~~
 
-When operating from an installed skill, resolve the same script relative to this
-reference's parent skill:
+From an installed skill, resolve the same script relative to the skill directory:
 
 ~~~sh
 skill_dir=<directory-containing-this-SKILL.md>
@@ -60,63 +40,65 @@ installer="$skill_dir/../../scripts/install-agents.sh"
 sh "$installer" --check
 ~~~
 
-The installer is fail-closed and performs its own post-install exactness check.
-Modified, nonregular, symlinked, or conflicting destinations remain refusals, and
-all three destinations are preflighted before any mutation. It never overwrites a
-differing profile.
+The installer is fail-closed, preflights all destinations before mutation, and performs
+an exact post-install comparison. It never overwrites a differing profile by default.
+After a plugin update, synchronize only recognized Orchestra profiles explicitly:
 
-The root emits one machine-auditable declaration before its first task tool call:
-
-~~~text
-SELECTIVE ROUTE
-mode: solo | delegate | audit | full
-risk: <concise, task-specific rationale>
+~~~sh
+sh scripts/install-agents.sh --update
+sh scripts/install-agents.sh --check
 ~~~
 
-Solo is the default. One auxiliary is the default maximum; full is an explicit broad
-or high-risk exception. The root may emit a later declaration only to escalate when
-newly observed risk justifies it. It records that evidence and never silently
-downgrades.
+`--update` validates exact role/model/effort identity, refuses foreign or unsafe files,
+checks for concurrent change after preflight, keeps a backup of every replaced profile,
+and prints each backup path.
 
-The existing --check flag verifies all three roles. For task-scoped preflight, check
-only the auxiliaries selected by the declaration; every check is non-mutating and
-fail-closed:
+For task-scoped preflight, check only selected role types:
 
-| Route | Required companion checks |
+| Selected lanes/modifiers | Required check |
 |---|---|
-| solo | None |
-| delegate (Luna) | `--check --check-role luna` |
-| delegate (Terra) | `--check --check-role terra` |
-| audit | `--check --check-role sol` |
-| full (Luna) | `--check --check-role luna --check-role sol` |
-| full (Terra) | `--check --check-role terra --check-role sol` |
+| Sol-only `solo` | None |
+| Any Luna lane | `--check --check-role luna` |
+| Any Terra lane | `--check --check-role terra` |
+| `review` modifier | `--check --check-role sol` |
+| Multiple role types | Combine the corresponding `--check-role` arguments |
 
-For example:
+Examples:
 
 ~~~sh
 sh scripts/install-agents.sh --check --check-role luna
-sh scripts/install-agents.sh --check --check-role sol
+sh scripts/install-agents.sh --check --check-role terra --check-role sol
+sh scripts/install-agents.sh --check --check-role luna --check-role terra
 ~~~
 
-Unknown or missing role arguments fail before any destination mutation. A selective
-check ignores unselected role destinations, while the all-role --check behavior
-remains unchanged. Cache successful checks only for the task; never carry them across
-later tasks, installation/update, or routing/configuration changes.
+Unknown or missing role arguments fail before destination mutation. Cache a successful
+check only for the current task and unchanged routing configuration.
 
-Luna / Max is for bounded, fully specified work. Terra / High is selected for
-judgment-heavy, high-risk, context-heavy, or wide-blast-radius work. A Luna result
-may justify a declared Terra escalation only when it shows newly observed risk. One
-corrected Luna attempt is reserved for a specification error and is not a prerequisite
-for Terra.
+## Strategy and lane preflight
 
-If public metadata omits model or effort, use the local inspector below as a fallback
-for those omitted fields only. Do not use it to replace available public evidence.
+Before tools, Sol declares the base strategy and the `parallel` and `review` modifiers.
+Then perform these checks before spawning:
+
+- `solo`: no auxiliary or companion check.
+- `delegate`: one bounded Luna lane.
+- `expert`: one Terra lane selected immediately.
+- `parallel`: at least two independent lanes with non-overlapping ownership and no
+  required intermediate dependency. Preflight each distinct role type once.
+- `explore`: distinct hypotheses or evidence scopes. Duplicate investigations are a
+  routing error.
+- `plan-execute`: architecture reasoning finishes before the Luna packet is frozen.
+  Use Terra for reasoning only when its added judgment is material.
+- `diagnose-fix`: record reproduction and evidence before hypothesis testing; do not
+  authorize a fix until a discriminating experiment confirms the cause.
+- `review`: add the fresh Sol check only when review is declared.
+
+Do not allocate agents merely because capacity exists. For a trivial task, the
+preflight itself is evidence that `solo` is cheaper.
 
 ## Runtime routing evidence
 
-The public spawn/details record is authoritative for the selected role and any exposed
-model/effort. When model or effort is omitted, resolve the helper relative to the
-installed skill and inspect the exact native thread ID:
+Public spawn/details metadata is authoritative for selected role and exposed
+model/effort. If model or effort is omitted, inspect the exact native thread ID:
 
 ~~~sh
 skill_dir=<directory-containing-this-SKILL.md>
@@ -131,76 +113,90 @@ sh "$runtime_inspector" --sessions-dir /absolute/path/to/sessions <native-subage
 ~~~
 
 The helper searches one exact rollout filename suffix and emits only allowlisted
-routing fields. It refuses invalid IDs, zero/multiple matches, missing fields, or
-conflicting model/effort/sandbox/permission/working-directory values. It never prints
-prompts, messages, environment variables, tokens, configuration, or arbitrary rollout
-payloads.
+routing fields. It rejects invalid IDs, zero or multiple matches, missing fields, and
+conflicting model/effort/sandbox/permission/cwd values. It never prints prompts,
+messages, environment variables, tokens, configuration, or arbitrary rollout payloads.
 
-Accepted routing is Luna / max for bounded delegate/full implementation, Terra / high
-for higher-risk delegate/full implementation, and Sol / high for audit/full review.
-If public and local evidence both exist, they must agree. The local inspector is not a
-model-selection fallback.
+Accepted routing is Luna / max, Terra / high, and Sol / high. If public and local
+evidence both exist, they must agree. The inspector is evidence, not a model-selection
+fallback.
+
+## Context efficiency checks
+
+Before sending a worker packet, Sol verifies:
+
+1. Every path, symbol, range, command, and evidence location is task-relevant.
+2. `KNOWN FACTS` contains settled conclusions rather than a session transcript.
+3. `DO NOT RESEARCH` prevents rediscovery of already-settled areas.
+4. `OWNED FILES / SYMBOLS` is exact and does not overlap another active lane.
+5. Investigation lanes test different hypotheses or evidence scopes.
+6. The worker can verify its own deliverable without reopening the whole repository.
+
+Do not claim token savings. The observable goal is less duplicated exploration,
+context transfer, agent use, review, and failed iteration. Report packet shape as file,
+range, and evidence-item counts; optional character counts are allowed only when
+directly measured.
+
+## Parent verification and integration
+
+Workers return structured reports, but Sol independently inspects actual files, the
+complete relevant diff, changed-file scope, requested checks, and runtime or artifact
+evidence. Parallel integration and combined verification always belong to Sol.
+
+For `plan-execute`, freeze the implementation packet after the architecture decision;
+if implementation exposes a new architectural choice, Luna stops and returns control.
+For `diagnose-fix`, keep the reproduction and discriminating experiment in the final
+evidence so the regression check proves the established cause, not merely a green test.
+
+## Retry, escalation, and checkpoint operations
+
+- A specification defect allows one corrected Luna retry at most.
+- Misclassification allows direct Terra escalation without a Luna retry.
+- The same failure without new evidence stops the lane.
+- An invalidated architecture produces `rethink`.
+- A route change requires a new `SELECTIVE ROUTE` block naming the new evidence.
+
+Continue while a pass adds evidence, reduces uncertainty, completes bounded work, or
+changes the observed failure. Emit the `STRATEGIC CHECKPOINT` from the main skill for
+two materially similar no-progress corrections, an invalidated core assumption,
+oscillation, or an architectural mismatch. The new step must change the hypothesis,
+architecture, decomposition, verification method, or evidence-backed route. Never use
+a checkpoint to bypass routing, review, permission, or acceptance rules.
 
 ## Read-only reviewer interpretation
 
-The reviewer TOML requests sandbox_mode = read-only. Capture the observed sandbox
-policy type and permission profile type from public metadata or the inspector:
+The reviewer profile requests `sandbox_mode = read-only`. Capture observed sandbox and
+permission profile types:
 
 - Observed read-only sandbox: isolation is enforced.
 - Broader host policy: continue only when hard isolation is not required, the prompt
-  forbids edits, and the parent captures exact before/after repository and artifact
-  state. Report the broader policy and profile as residual risk.
-- Unobservable isolation, required hard isolation, or any mutation: stop the review and
-  do not claim read-only isolation.
+  forbids edits, and Sol captures exact before/after repository and artifact state.
+- Unobservable isolation, required hard isolation, or mutation: stop review and do not
+  claim read-only isolation.
 
-A reviewer returns exactly ship, fix-first, or rethink. A fix invalidates the prior
-verdict; parent verification and a new fresh review are required.
+The reviewer independently inspects critical claims and returns exactly `ship`,
+`fix-first`, or `rethink`. It never implements. Any correction discards the verdict,
+requires manager verification, and uses a new fresh reviewer.
 
-## Worker packet and parent acceptance
+## Run metadata
 
-Every Luna or Terra prompt uses the five-part packet in role-contracts.md:
+At completion or stop, record only observable fields:
 
-- OBJECTIVE
-- FILES AND OWNERSHIP
-- INTERFACES
-- CONSTRAINTS
-- VERIFICATION
+~~~text
+ORCHESTRA RUN
+Strategy: <strategy>
+Roles: <roles>
+Agents: <count>
+Escalations: <count>
+Retries: <count>
+Review: used | not-used
+Context: files=<count>, ranges=<count>, evidence-items=<count>
+Result: complete | partial | blocked | rethink
+Verification: pass | fail | partial (<evidence>)
+~~~
 
-It must also request the structured implementation report. The parent owns architecture,
-complete diff inspection, verification reruns, correction/escalation decisions, and
-acceptance. Worker claims never replace direct inspection.
-
-In solo, the root plans, implements, tests, and self-reviews with no auxiliary. In
-delegate, one selected Luna or Terra implementer completes the spec and the root
-verifies with no fresh reviewer. In audit, the root implements and verifies, then a
-fresh Sol reviewer reviews. In full, one selected implementer completes the spec, the
-root verifies, and a fresh Sol reviewer reviews. Auxiliary work substitutes for root
-work; it does not duplicate it. A reviewer never fixes its own findings.
-
-## Strategic checkpoint protocol
-
-A long task is not itself stalled. Keep iterating while a pass produces new evidence,
-reduces uncertainty, completes a bounded unit, or changes the observed failure. Pause
-for a strategic checkpoint when one of these evidence-backed conditions occurs:
-
-- Two consecutive materially similar corrections leave the same failure or no-progress
-  state.
-- A core assumption behind the current plan is invalidated.
-- The work oscillates between already-observed states.
-- Repeated local fixes reveal that the architecture, decomposition, verification
-  method, or selected route no longer fits the task.
-
-Capture the trigger, preserved work and evidence, invalidated approach, one materially
-different bounded next step, and its success signal in the `STRATEGIC CHECKPOINT`
-block defined in the main skill. A different next step changes at least one of the
-hypothesis, architecture, decomposition, verification method, or evidence-backed
-route; a renamed retry or another small variation of the failed fix does not qualify.
-
-The checkpoint is a control boundary, not a progress reset. Preserve completed work,
-avoid rerunning settled checks, and give the new cycle a bounded objective. If there is
-no credible different step, if the same checkpoint recurs without new evidence, or if
-continuation needs authority outside the task, stop and ask the user. Never use a
-checkpoint to bypass route-escalation, review, permission, or acceptance rules.
+Do not infer token, duration, or cost metrics when the host does not provide them.
+This record is intentionally lightweight and is not a workflow engine or state machine.
 
 ## Maintainer verification
 
@@ -208,10 +204,14 @@ From the repository root, run:
 
 ~~~sh
 python3 -m unittest discover -s tests -v
+sh scripts/install-agents.sh --check
 git diff --check
 git status --short
 git diff --stat
 ~~~
 
-The contract tests cover the manifest, exact three-role pins, selective-routing
-contracts, attribution, fail-closed installer fixtures, and shell syntax.
+For pre-install validation without touching user configuration, point the installer at
+a temporary directory, then compare source and installed plugin trees using the normal
+local plugin installation workflow. The contract tests cover manifest versioning,
+exact role pins, all seven strategies, both modifiers, Context Packets, stop rules,
+dry-run examples, fail-closed installer fixtures, and shell syntax.

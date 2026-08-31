@@ -1,7 +1,7 @@
 {
   "name": "orchestra",
-  "version": "0.2.1",
-  "description": "Sol-led selective routing across pinned Luna, Terra, and Sol subagents",
+  "version": "0.3.0",
+  "description": "Sol-led strategy routing with scoped context packets and pinned subagents",
   "author": {
     "name": "Vlad Kalashnikov",
     "url": "https://github.com/vldklsnkv"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Orchestra",
-    "shortDescription": "Sol-led routing across Luna, Terra, and Sol.",
-    "longDescription": "Keeps Sol / High as the primary architect and manager, routes bounded work to Luna / Max, escalates complex or high-risk work to Terra / High, and uses a fresh read-only Sol / High reviewer for audit or full delivery.",
+    "shortDescription": "Strategy-first orchestration with scoped context.",
+    "longDescription": "Keeps Sol / High as manager, selects a workflow strategy before choosing pinned Luna, Terra, or fresh Sol lanes, and limits delegated context to explicit evidence-backed packets.",
     "developerName": "Vlad Kalashnikov",
     "category": "Productivity",
     "capabilities": [
@@ -30,8 +30,8 @@
     "composerIcon": "./assets/icon.png",
     "logo": "./assets/icon.png",
     "defaultPrompt": [
-      "Use $orchestra:orchestration to declare a SELECTIVE ROUTE before tools, then build and verify this task.",
-      "Use Sol / High as manager; route bounded work to Luna / Max and complex work to Terra / High."
+      "Use $orchestra:orchestration to choose a strategy before tools, then execute and verify this task.",
+      "Keep context packets scoped; add workers or review only when their value exceeds orchestration overhead."
     ]
   }
 }

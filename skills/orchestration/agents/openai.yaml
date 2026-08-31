@@ -1,4 +1,4 @@
 interface:
   display_name: "Orchestra"
-  short_description: "Sol-led Luna, Terra, and Sol routing"
-  default_prompt: "Use $orchestra:orchestration to declare a SELECTIVE ROUTE before task tools, then deliver and verify the result."
+  short_description: "Strategy-first Sol-led orchestration"
+  default_prompt: "Use $orchestra:orchestration to choose a strategy before task tools, send scoped Context Packets, then deliver and verify the result."

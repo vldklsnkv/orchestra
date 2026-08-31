@@ -1,74 +1,136 @@
 # Orchestra
 
-Orchestra is a Codex plugin for risk-gated, Sol-led delivery. It keeps one primary agent responsible for architecture and acceptance, then adds implementation or review agents only when the task's complexity and blast radius justify them.
+Orchestra is a small strategy-first orchestration plugin for Codex. Sol / High remains
+the manager and final acceptor, but it chooses how to organize work before choosing a
+worker. Delegated lanes receive narrow, addressed Context Packets so they can use known
+facts and evidence without repeating repository-wide discovery.
 
-The goal is selective orchestration rather than maximum delegation. Straightforward work stays in one session. Broad, high-risk, or judgment-heavy work receives a clearly declared route, pinned agent roles, parent verification, and—when required—a fresh final review.
+Orchestra optimizes total useful work, not agent count. It does not claim token or time
+savings without measured host evidence.
 
-## Routing modes
+## Strategies
 
-Every Orchestra task declares one of four routes before task tools are used:
+| Strategy | Delivery model |
+|---|---|
+| `solo` | Sol implements and verifies when orchestration overhead is not worthwhile. |
+| `delegate` | Sol freezes bounded work, Luna / Max implements, Sol verifies. |
+| `expert` | Sol scopes complex or high-risk work, Terra / High handles it, Sol verifies. |
+| `parallel` | Independent non-overlapping lanes run concurrently; Sol integrates. |
+| `explore` | Distinct hypotheses or evidence scopes are investigated; Sol arbitrates. |
+| `plan-execute` | Sol or Terra settles architecture, then Luna executes the frozen plan. |
+| `diagnose-fix` | Reproduce, evidence, hypothesis, experiment, fix, regression verification. |
 
-| Route | Delivery model |
-| --- | --- |
-| `solo` | Sol / High plans, implements, verifies, and accepts the work. |
-| `delegate` | Luna / Max handles bounded routine work, or Terra / High handles complex work; Sol verifies the result. |
-| `audit` | Sol implements and verifies, then a fresh read-only Sol / High reviewer inspects the accumulated change. |
-| `full` | One selected implementer completes the work, Sol verifies it, and a fresh Sol reviewer performs final acceptance review. |
+Two modifiers compose with those strategies:
 
-`solo` is the default. Orchestra escalates only when the observed risk supports it and never silently substitutes a different model, effort, role, or review policy.
+- `review` adds a fresh read-only Sol / High reviewer after manager verification.
+- `parallel` adds independent lanes where ownership and intermediate dependencies do
+  not overlap. The base `parallel` strategy is used when this is the task's main shape.
 
-## Agent responsibilities
+Terra can be selected immediately when complexity is evident. Luna never needs to fail
+first. Trivial work stays `solo`; a reviewer is not added by habit.
 
-- **Sol / High** owns intent, architecture, route selection, task decomposition, verification, escalation, and final acceptance.
-- **Luna / Max** handles bounded, fully specified implementation work where speed and execution are the main concerns.
-- **Terra / High** handles judgment-heavy, context-heavy, high-risk, or wide-blast-radius implementation.
-- **Fresh Sol / High reviewer** performs behavioral read-only review for `audit` and `full`, returning `ship`, `fix-first`, or `rethink`.
+## Roles
 
-Delegated work substitutes for primary-agent implementation; it is not duplicated for appearance. Worker reports are treated as claims until the primary session verifies the actual diff and evidence.
+- **Sol / High** owns intent, architecture, strategy, decomposition, Context Packets,
+  verification, escalation, arbitration, and final acceptance.
+- **Luna / Max** executes bounded, fully specified or architecture-frozen work.
+- **Terra / High** handles judgment-heavy, complex, high-risk, context-heavy, or
+  wide-blast-radius reasoning and implementation.
+- **Fresh Sol / High reviewer** independently inspects critical claims in a requested
+  read-only sandbox and returns `ship`, `fix-first`, or `rethink`.
+
+No additional agent roles are required by the seven strategies.
+
+## Context Packets
+
+Every worker gets an explicit packet containing:
+
+```text
+GOAL
+STRATEGY / ROLE
+IMPLEMENTATION SPEC
+RELEVANT FILES / SYMBOLS / RANGES
+KNOWN FACTS
+RELEVANT EVIDENCE
+INTERFACES / INVARIANTS
+OWNED FILES / SYMBOLS
+DO NOT TOUCH
+DO NOT RESEARCH
+VERIFICATION
+STOP / ESCALATION CONDITIONS
+```
+
+Paths, symbols, ranges, commands, and evidence locations are preferred over long prose.
+Parallel lanes require non-overlapping ownership and distinct evidence scopes. Review
+preserves useful independent checking of critical claims instead of trusting summaries.
+
+## Routing and stop rules
+
+Before task tools, Orchestra emits a compact `SELECTIVE ROUTE` containing strategy,
+risk, ambiguity, decomposability, implementation role, parallelism, and review use.
+
+Luna stops when a supposedly bounded lane exposes architecture, material ambiguity,
+substantially wider scope, judgment-heavy decisions, high-risk invariants, or a systemic
+failure outside ownership. A specification defect permits one corrected Luna retry at
+most. Misclassification can escalate directly to Terra. Repeated failure without new
+evidence stops; an invalidated architecture returns `rethink`.
+
+`diagnose-fix` does not permit a speculative patch before a minimal discriminating
+experiment establishes the cause.
+
+## Lightweight run record
+
+At completion or stop, Orchestra records selected strategy and roles, agent count,
+escalations, retries, review use, packet file/range/evidence counts, result status, and
+verification result. It does not fabricate token, duration, or cost metrics when the
+host API does not expose them.
 
 ## Installation
 
-Install the Orchestra plugin through the normal local Codex plugin workflow. Companion agent profiles are user-owned configuration and are not registered automatically by plugin installation.
-
-From the repository, install and verify the pinned profiles:
+Install the plugin through the normal local Codex plugin workflow. Companion profiles
+are user-owned configuration and are installed separately:
 
 ```sh
 sh scripts/install-agents.sh
 sh scripts/install-agents.sh --check
 ```
 
-The installer is selective and fail-closed. It validates profile identity and refuses to proceed when required files or expected contracts do not match.
+The installer is selective and fail-closed. It validates exact profiles and refuses to
+overwrite conflicts by default. After a plugin update, explicitly synchronize recognized
+Orchestra profiles with a recoverable backup:
+
+```sh
+sh scripts/install-agents.sh --update
+sh scripts/install-agents.sh --check
+```
+
+`--update` refuses foreign, unsafe, or identity-mismatched files and prints the backup
+path for every replaced profile.
 
 Start a new Codex task on GPT-5.6 Sol with high reasoning, then invoke:
 
 ```text
-Use $orchestra:orchestration to declare a route, build this feature, and verify it.
+Use $orchestra:orchestration to choose a strategy, execute this task, and verify it.
 ```
 
-Orchestra confirms the primary model and effort before any delegated lane. If runtime metadata cannot prove them, it asks the user to confirm Sol / High rather than assuming.
-
-## Review and safety model
-
-- Routes are declared in a machine-auditable `SELECTIVE ROUTE` block.
-- Only agents selected by that route are preflighted and spawned.
-- Workers receive explicit ownership, interfaces, constraints, and verification requirements.
-- The primary session independently checks changed-file scope, tests, runtime evidence, and repository state.
-- Evidence-backed stagnation triggers a strategic checkpoint: preserve progress, invalidate the failed approach, and begin a bounded new cycle only with a materially different next step and success signal.
-- A reviewer never implements its own fixes. `fix-first` returns the work to the designated implementation lane and requires a new fresh review.
-- Observed sandbox and permission limits are reported accurately; Orchestra does not claim enforced isolation when it is unavailable.
+The skill cannot switch the already-running primary model. It verifies Sol / High when
+metadata is available and stops before delegation when the prerequisite is unconfirmed.
 
 ## Development and verification
 
-Run the contract suite:
-
 ```sh
 python3 -m unittest discover -s tests -v
+sh scripts/install-agents.sh --check
 ```
 
-Inspect runtime metadata for a specific agent session when the host exposes it:
+The contract suite covers the manifest, exact three-role pins, seven strategies,
+modifiers, Context Packets, escalation rules, dry-run examples, installer behavior, and
+shell syntax. Runtime metadata can be inspected with:
 
 ```sh
 sh scripts/inspect-agent-runtime.sh --help
 ```
 
-Orchestra is released under the MIT License. The routing design and safety tooling are adapted from [Sol Advisor](https://github.com/DannyMac180/sol-advisor) v0.6.0; see [NOTICE.md](NOTICE.md) for attribution.
+Orchestra is released under the MIT License. The original role and safety tooling are
+adapted from [Sol Advisor](https://github.com/DannyMac180/sol-advisor) v0.6.0; see
+[NOTICE.md](NOTICE.md) for attribution.
