@@ -1,4 +1,4 @@
 interface:
   display_name: "Orchestra"
-  short_description: "Strategy-first orchestration with context policy"
-  default_prompt: "Use $orchestra:orchestration to choose a strategy and explicit native fork_turns before task tools, send compact evidence-scoped packets, then deliver and verify the result."
+  short_description: "Adaptive single-agent-first orchestration"
+  default_prompt: "Use $orchestra:orchestration to keep connected work with one owner by default, add agents only for measured value, and verify with compact artifact handoffs."

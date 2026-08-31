@@ -1,7 +1,7 @@
 {
   "name": "orchestra",
-  "version": "0.4.0",
-  "description": "Sol-led strategy routing with explicit native context policy and pinned subagents",
+  "version": "0.5.0",
+  "description": "Adaptive single-agent-first routing with explicit context policy and pinned specialists",
   "author": {
     "name": "Vlad Kalashnikov",
     "url": "https://github.com/vldklsnkv"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Orchestra",
-    "shortDescription": "Strategy-first orchestration with explicit context policy.",
-    "longDescription": "Keeps Sol / High as manager, selects a workflow strategy and native context inheritance before choosing pinned Luna, Terra, or fresh Sol lanes, and limits delegated context to evidence-backed packets.",
+    "shortDescription": "Adaptive single-agent-first orchestration.",
+    "longDescription": "Chooses Sol or Terra as one sticky owner for connected work, adds workers only for measurable information value, and preserves context-clean Sol review for high-risk changes.",
     "developerName": "Vlad Kalashnikov",
     "category": "Productivity",
     "capabilities": [
@@ -30,8 +30,8 @@
     "composerIcon": "./assets/icon.png",
     "logo": "./assets/icon.png",
     "defaultPrompt": [
-      "Use $orchestra:orchestration to choose a strategy before tools, then execute and verify this task.",
-      "Select native fork_turns explicitly; keep packets evidence-scoped and reviewers context-clean."
+      "Use $orchestra:orchestration for adaptive single-agent-first routing, execution, and verification.",
+      "Add agents only for risk, true parallelism, review, or a named specialist advantage."
     ]
   }
 }

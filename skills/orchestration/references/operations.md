@@ -1,18 +1,107 @@
 # Native operations
 
-This is the maintainer and operator reference for Orchestra's native custom-agent
-workflow. Keep strategy choice separate from role choice: strategies organize work;
-the three installed TOMLs pin execution and review roles.
+This reference operates Orchestra's policy on native Codex agents. There is no custom
+router service, state machine, token estimator, or manager agent. In `adaptive-v2`, the
+primary Sol / High session is the Router and final acceptor. The Router selects one
+execution graph containing the initial owner, topology, and review requirement. It is
+immutable between explicit escalation gates and otherwise executes without reselection.
 
-## Role pins and spawn contract
+## Deterministic adaptive-v2 routing
+
+Evaluate owner signals and topology independently. Safety gates override economy.
+
+### Initial-owner signals
+
+The Router records only qualitative signals needed for the owner decision:
+
+| Signal | Values and meaning |
+|---|---|
+| Uncertainty | `low`, `medium`, or `high` confidence in the task framing and expected path |
+| Risk / blast radius | `low`, `medium`, or `high` impact if the interpretation or change is wrong |
+| Verifiability | `objective`, `partial`, or `low` strength of tests, oracle, or acceptance evidence |
+| Task nature / reasoning | `mechanical/bounded`, `reasoning-heavy architecture/problem-framing`, or `mixed` |
+
+Complexity remains a low/medium/high telemetry field only; it never selects the owner.
+Do not add numeric scoring, numeric thresholds, keyword rules, or another owner signal.
+
+The exact initial-owner rule is:
+
+- `Terra` requires all of: low uncertainty, low/medium risk or blast radius,
+  high/objective verifiability, and mechanical/bounded task nature.
+- `Sol` is selected for high uncertainty, reasoning-heavy architecture/problem-framing,
+  high cost of a wrong interpretation, or high risk with less-than-high verifiability.
+- Mixed or unresolved signals conservatively fall back to `Sol`.
+
+Owner selection does not inspect decomposability, parallelism, strategy, or review need.
+Those are separate dimensions of the same immutable graph.
+
+### Topology and review graph
+
+The selected Strategy executes this graph and cannot reselect the owner, parallelism, or
+review requirement.
+
+| Observable condition | Topology | Non-owner calls | Manager |
+|---|---|---:|---|
+| Connected work; low/medium risk; one evolving surface | `owner-only` | 0 | no |
+| Connected high-risk work or explicit independent-review request | `owner-review` | 1 fresh reviewer after owner verification | no |
+| At least two independent deliverables, non-overlapping ownership, no required intermediate dependency | `orchestrated-parallel` | one per justified lane | yes, for decomposition/synthesis |
+| Named expertise/context boundary with a concrete unique deliverable | `owner-specialist` | 1 specialist by default | no |
+| Dynamic decomposition, multi-lane synthesis, or unresolved routing ambiguity | `manager` | only justified lanes | yes |
+| Decomposable but sequentially dependent/shared surface | `owner-only` | 0 | no |
+
+`Non-owner calls` counts workers and reviewers, not the selected owner. A Terra
+`owner-only` run therefore has zero non-owner calls but one spawned owner invocation.
+
+Classify complexity as low/medium/high for telemetry, but do not route to a worker only
+because complexity is high. Risk is high when failure can materially affect
+privacy/security, protected data, irreversible operations, auth, payments/financial
+correctness, destructive migrations, critical invariants, or another user-defined
+high-impact boundary.
+
+Parallelizable means all are true:
+
+1. At least two deliverables can be accepted independently.
+2. Ownership does not overlap.
+3. No lane needs another lane's intermediate result.
+4. Integration is smaller than the independent work.
+5. Each lane has a specific expected information value.
+
+If any condition fails, do not create fake parallelism. Sequential research,
+implementation, tests, and correction stay with one owner.
+
+A specialist call must name the expertise/context advantage and unique expected output.
+Generic complexity, spare agent capacity, or the desire to "double check" are not
+sufficient.
+
+Review is selected independently from the owner and never replaces it. Parallelism is
+selected independently from the owner and must preserve the genuine-parallel path when
+deliverables, ownership, and dependencies are truly independent.
+
+## Legacy fallback
+
+`legacy` preserves the v0.4 selection behavior and all seven strategies:
+
+- `solo`: Sol implements and verifies.
+- `delegate`: one bounded Luna lane, then Sol verification.
+- `expert`: one Terra lane for complex/high-risk work, then Sol verification.
+- `parallel`: independent non-overlapping lanes, then Sol synthesis.
+- `explore`: distinct hypotheses/evidence scopes, then Sol arbitration.
+- `plan-execute`: architecture freezes before optional Luna execution.
+- `diagnose-fix`: reproduce, evidence, hypothesis, experiment, causal fix, regression.
+
+The `review` and `parallel` modifiers remain available. Legacy does not weaken context,
+retry, permission, review, or terminal gates. Select it explicitly for compatibility or
+a controlled comparison; never silently switch modes mid-run.
+
+## Role pins and preflight
 
 | Role type | Model | Effort | Use |
 |---|---|---|---|
-| orchestra_luna_implementer | gpt-5.6-luna | max | Bounded or frozen implementation and bounded evidence lanes |
-| orchestra_terra_implementer | gpt-5.6-terra | high | Expert reasoning or complex/high-risk implementation lanes |
-| orchestra_sol_reviewer | gpt-5.6-sol | high | Optional fresh review; requests read-only sandbox |
+| orchestra_luna_implementer | gpt-5.6-luna | max | Bounded specialist/mechanical lane |
+| orchestra_terra_implementer | gpt-5.6-terra | high | Selected Terra owner, judgment-heavy specialist, or complex independent lane |
+| orchestra_sol_reviewer | gpt-5.6-sol | high | Fresh independent review; requests read-only sandbox |
 
-Select native context inheritance for every lane explicitly:
+Select native context inheritance explicitly:
 
 ~~~text
 agent_type: orchestra_luna_implementer | orchestra_terra_implementer | orchestra_sol_reviewer
@@ -20,225 +109,210 @@ fork_turns: none | <positive integer string N> | all
 ~~~
 
 The interface defaults to `all` when omitted, so omission is forbidden. Default to
-`none`. Use `<N>` only for materially necessary recent turns and record the concise
-reason in `SELECTIVE ROUTE` and the worker packet. Use `all` only as a deliberate rare
-fallback when reconstruction from the packet is unsafe because the exact full interaction
-history is itself an explicitly addressed authoritative artifact that cannot be safely
-paraphrased. Every packet still records all safety and scope boundaries; no unrecorded
-constraint may control an allowed action; inherited turns are supplementary context only.
-Independent review is always `fork_turns: none`. Do not attach model or reasoning
-overrides. Missing, conflicting, unavailable, or unobservable role/model/effort is a hard
-stop; never substitute another role.
+`none`; use `<N>` only for materially necessary recent turns. Use `all` only as a rare
+fallback when reconstruction is unsafe because the exact full interaction history is
+itself an explicitly addressed authoritative artifact that cannot be safely
+paraphrased. Every packet still records every safety and scope boundary; inherited
+turns are supplementary context only, and no unrecorded constraint may control an
+allowed action. Independent review is always `none`.
 
-## Installation and exactness checks
+Preflight only selected role types:
 
-Plugin installation does not register user-owned companion TOMLs. At installation or
-update time, run from the repository:
+| Selected auxiliary | Required check |
+|---|---|
+| Sol owner-only | none |
+| Terra selected owner | `--check --check-role terra` |
+| Any Luna lane | `--check --check-role luna` |
+| Any Terra lane | `--check --check-role terra` |
+| Independent review | `--check --check-role sol` |
+
+Run checks from the repository or resolve the installer relative to the installed
+skill:
+
+~~~sh
+sh scripts/install-agents.sh --check --check-role luna
+sh scripts/install-agents.sh --check --check-role terra --check-role sol
+~~~
+
+Public spawn/details metadata is authoritative for role and exposed model/effort. If
+model or effort is omitted, inspect the exact native thread ID:
+
+~~~sh
+sh scripts/inspect-agent-runtime.sh <native-subagent-thread-id>
+~~~
+
+Missing, conflicting, unavailable, or unobservable evidence stops that lane; never
+substitute a role.
+
+## Installation and update
+
+Plugin installation does not register user-owned companion TOMLs. Install or verify
+them separately:
 
 ~~~sh
 sh scripts/install-agents.sh
 sh scripts/install-agents.sh --check
 ~~~
 
-From an installed skill, resolve the same script relative to the skill directory:
-
-~~~sh
-skill_dir=<directory-containing-this-SKILL.md>
-installer="$skill_dir/../../scripts/install-agents.sh"
-sh "$installer" --check
-~~~
-
-The installer is fail-closed, preflights all destinations before mutation, and performs
-an exact post-install comparison. It never overwrites a differing profile by default.
-After a plugin update, synchronize only recognized Orchestra profiles explicitly:
+After a profile-changing update:
 
 ~~~sh
 sh scripts/install-agents.sh --update
 sh scripts/install-agents.sh --check
 ~~~
 
-`--update` validates exact role/model/effort identity, refuses foreign or unsafe files,
-checks for concurrent change after preflight, keeps a backup of every replaced profile,
-and prints each backup path.
+The installer is fail-closed, validates identity, refuses foreign or unsafe files,
+checks for concurrent change, and keeps backups for replaced recognized profiles.
 
-For task-scoped preflight, check only selected role types:
+## Context and handoff operations
 
-| Selected lanes/modifiers | Required check |
-|---|---|
-| Sol-only `solo` | None |
-| Any Luna lane | `--check --check-role luna` |
-| Any Terra lane | `--check --check-role terra` |
-| `review` modifier | `--check --check-role sol` |
-| Multiple role types | Combine the corresponding `--check-role` arguments |
+Before a Terra-owner or worker packet, verify:
 
-Examples:
+1. A worker/specialist call has stated expected information value; a selected-owner call
+   instead records the owner-selection reason.
+2. Paths, symbols, ranges, commands, and evidence are task-relevant.
+3. Settled facts replace transcript narration.
+4. Allowed scope is exact and non-overlapping.
+5. `DO NOT RESEARCH` prevents duplicate exploration.
+6. The lane can verify its deliverable without reopening the repository.
+7. `fork_turns` is explicit and any non-`none` reason is material.
 
-~~~sh
-sh scripts/install-agents.sh --check --check-role luna
-sh scripts/install-agents.sh --check --check-role terra --check-role sol
-sh scripts/install-agents.sh --check --check-role luna --check-role terra
+Before review or a downstream lane, create `ARTIFACT HANDOFF` using the exact contract
+in `role-contracts.md`. Send canonical addresses, not copied artifacts or owner
+reasoning. The receiver follows this context ladder:
+
+1. Handoff.
+2. Targeted canonical file/artifact reads.
+3. Compact expansion for one named missing fact.
+4. Full historical context only under the rare strict `all` gate.
+
+Do not impose hard token caps. When a soft budget is exposed, use it to reconsider
+topology, duplicate references, and expansion—not to kill sound reasoning.
+
+## Owner verification and integration
+
+Worker reports and handoffs are claims. The owner inspects actual files, the complete
+relevant diff, changed-file scope, requested checks, and runtime/artifact evidence.
+Parallel synthesis belongs to the manager/owner and must preserve every lane's safety
+boundary.
+
+For `diagnose-fix`, keep reproduction and the discriminating experiment in final
+evidence. For `plan-execute`, freeze architecture before delegation; new architecture
+returns control to the owner.
+
+## Review loop operations
+
+1. Owner verifies the change and creates an evidence-only ARTIFACT HANDOFF.
+2. Fresh reviewer uses `fork_turns: none` and receives the original task contract,
+   acceptance criteria, constraints, exact diff/evidence, and minimum source addresses.
+3. `ship` terminates immediately.
+4. `rethink` stops corrections and returns to architecture/user.
+5. `fix-first` permits one bounded correction by the same owner.
+6. Owner re-verifies and sends a new fresh reviewer a targeted re-review packet. The
+   affected surface and regression perimeter are checked before broader context.
+7. A third review cycle is allowed only when correction evidence reveals a new material
+   risk/defect class. Otherwise stop; repeated wording or summary drift is not a new
+   class.
+
+Do not use a new reviewer merely to reset the loop. Any correction invalidates the old
+verdict. The owner never sends self-confidence, a desired verdict, or conclusion-framed
+reasoning.
+
+## Sticky owner and explicit escalation
+
+The initial owner owns research, execution, tests, correction, and verification for the
+run. Strategy and executor follow the Router-selected graph; neither may silently
+override its owner, topology, or review requirement. If `Terra` is the initial owner,
+primary Sol remains Router/final acceptor and does not duplicate Terra's implementation
+lane.
+
+Open the owner-escalation gate only for materially higher uncertainty, an
+architectural/strategic fork, an unexpected high-risk blast radius, invalidated original
+framing, or the owner's inability to continue confidently. Encode the takeover as an
+evidence-addressed handoff:
+
+~~~text
+Terra -> evidence-addressed ARTIFACT HANDOFF -> Sol takeover
 ~~~
 
-Unknown or missing role arguments fail before destination mutation. Cache a successful
-check only for the current task and unchanged routing configuration.
+The handoff identifies the exact evidence, preserved work, and unresolved decision.
+After takeover Sol remains owner. There is no automatic downgrade or oscillation. Sol to
+Terra is permitted only as bounded worker delegation for a large, isolated,
+low-uncertainty mechanical workload when its benefit exceeds handoff overhead; Sol
+remains owner, and this is neither escalation nor an owner switch.
 
-## Strategy and lane preflight
+## Retry, escalation, and checkpoints
 
-Before tools, Sol declares the base strategy and the `parallel` and `review` modifiers.
-Then perform these checks before spawning:
+- One corrected Luna retry at most for a specification defect.
+- A Terra owner may use only the evidence-addressed Terra-to-Sol takeover above; no
+  automatic owner downgrade or oscillation is allowed.
+- Sol-to-Terra is bounded worker delegation only and does not change ownership.
+- Same failure without new evidence stops.
+- Invalidated architecture returns `rethink`.
+- Route changes require a new `SELECTIVE ROUTE` naming the new evidence.
 
-- `solo`: no auxiliary or companion check.
-- `delegate`: one bounded Luna lane.
-- `expert`: one Terra lane selected immediately.
-- `parallel`: at least two independent lanes with non-overlapping ownership and no
-  required intermediate dependency. Preflight each distinct role type once.
-- `explore`: distinct hypotheses or evidence scopes. Duplicate investigations are a
-  routing error.
-- `plan-execute`: architecture reasoning finishes before the Luna packet is frozen.
-  Use Terra for reasoning only when its added judgment is material.
-- `diagnose-fix`: record reproduction and evidence before hypothesis testing; do not
-  authorize a fix until a discriminating experiment confirms the cause.
-- `review`: add the fresh Sol check only when review is declared.
-
-Choose the inheritance decision before spawning; it is separate from strategy and role.
-For every mode (`none`, limited `<N>`, or `all`), every worker receives a complete,
-self-contained authoritative packet. It must record the objective; ownership and
-allowed scope; constraints and invariants; evidence/artifact addresses; forbidden
-actions; `DO NOT RESEARCH` boundaries; expected verification; and stop conditions.
-Inherited turns are supplementary context only and can never supply or replace a
-missing safety boundary, permission, ownership, invariant, acceptance criterion, or
-settled fact. Use `all` only as a deliberate rare fallback when reconstruction from the
-packet is unsafe because the exact full interaction history is itself an explicitly
-addressed authoritative artifact that cannot be safely paraphrased; even then, the
-packet records every safety and scope boundary. No unrecorded constraint may control an
-allowed action. Do not use retained context as a substitute for exact ownership,
-evidence addresses, or `DO NOT RESEARCH` boundaries.
-
-Do not allocate agents merely because capacity exists. For a trivial task, the
-preflight itself is evidence that `solo` is cheaper.
-
-## Runtime routing evidence
-
-Public spawn/details metadata is authoritative for selected role and exposed
-model/effort. If model or effort is omitted, inspect the exact native thread ID:
-
-~~~sh
-skill_dir=<directory-containing-this-SKILL.md>
-runtime_inspector="$skill_dir/../../scripts/inspect-agent-runtime.sh"
-sh "$runtime_inspector" <native-subagent-thread-id>
-~~~
-
-For a disposable fixture or non-default session root:
-
-~~~sh
-sh "$runtime_inspector" --sessions-dir /absolute/path/to/sessions <native-subagent-thread-id>
-~~~
-
-The helper searches one exact rollout filename suffix and emits only allowlisted
-routing fields. It rejects invalid IDs, zero or multiple matches, missing fields, and
-conflicting model/effort/sandbox/permission/cwd values. It never prints prompts,
-messages, environment variables, tokens, configuration, or arbitrary rollout payloads.
-
-Accepted routing is Luna / max, Terra / high, and Sol / high. If public and local
-evidence both exist, they must agree. The inspector is evidence, not a model-selection
-fallback.
-
-## Context efficiency checks
-
-Before sending a worker packet, Sol verifies:
-
-1. Every path, symbol, range, command, and evidence location is task-relevant.
-2. `CURRENT STATE (authoritative facts)` contains settled conclusions, not a transcript.
-3. `FORBIDDEN ACTIONS` preserves `DO NOT RESEARCH` and outside-ownership boundaries.
-4. `ALLOWED SCOPE` is exact and does not overlap another active lane.
-5. Investigation lanes test different hypotheses or evidence scopes.
-6. The worker can verify its own deliverable without reopening the whole repository.
-7. `fork_turns` is explicit and any non-`none` selection has a concise material reason.
-
-Do not claim token savings. The observable goal is less duplicated exploration,
-context transfer, agent use, review, and failed iteration. Report packet shape as file,
-range, and evidence-item counts. Do not parse private transcripts or build a workaround
-for metrics unavailable from the host.
-
-## Parent verification and integration
-
-Workers return structured reports, but Sol independently inspects actual files, the
-complete relevant diff, changed-file scope, requested checks, and runtime or artifact
-evidence. Parallel integration and combined verification always belong to Sol.
-
-For `plan-execute`, freeze the implementation packet after the architecture decision;
-if implementation exposes a new architectural choice, Luna stops and returns control.
-For `diagnose-fix`, keep the reproduction and discriminating experiment in the final
-evidence so the regression check proves the established cause, not merely a green test.
-
-## Retry, escalation, and checkpoint operations
-
-- A specification defect allows one corrected Luna retry at most.
-- Misclassification allows direct Terra escalation without a Luna retry.
-- The same failure without new evidence stops the lane.
-- An invalidated architecture produces `rethink`.
-- A route change requires a new `SELECTIVE ROUTE` block naming the new evidence.
-
-Continue while a pass adds evidence, reduces uncertainty, completes bounded work, or
-changes the observed failure. Emit the `STRATEGIC CHECKPOINT` from the main skill for
-two materially similar no-progress corrections, an invalidated core assumption,
-oscillation, or an architectural mismatch. The new step must change the hypothesis,
-architecture, decomposition, verification method, or evidence-backed route. Never use
-a checkpoint to bypass routing, review, permission, or acceptance rules.
+Emit `STRATEGIC CHECKPOINT` for repeated no-progress correction, invalidated core
+assumption, oscillation, or architectural mismatch. The next step must materially
+change hypothesis, architecture, decomposition, verification method, or evidence-backed
+route. Never use a checkpoint to bypass review, permissions, or acceptance gates.
 
 ## Read-only reviewer interpretation
 
-The reviewer profile requests `sandbox_mode = read-only`. Capture observed sandbox and
-permission profile types:
-
 - Observed read-only sandbox: isolation is enforced.
 - Broader host policy: continue only when hard isolation is not required, the prompt
-  forbids edits, and Sol captures exact before/after repository and artifact state.
+  forbids edits, and exact before/after state is captured.
 - Unobservable isolation, required hard isolation, or mutation: stop review and do not
   claim read-only isolation.
 
-The reviewer independently inspects critical claims and returns exactly `ship`,
-`fix-first`, or `rethink`. It never implements. Any correction discards the verdict,
-requires manager verification, and uses a new fresh reviewer.
+## Honest telemetry and context-duplication proxy
 
-## Run metadata
+Record the `ORCHESTRA RUN` template from `SKILL.md`. Counts must describe the actual
+topology: owner-only means zero workers/reviewers, while a Terra owner still counts as
+one spawned agent invocation. Preserve separate telemetry for `initial_owner`,
+`owner_selection_reason`, `owner_escalations`, `owner_switches`, `reviewer_count`, and
+`worker_count`.
 
-At completion or stop, record only observable fields:
+For handoffs, count each file/artifact/evidence address occurrence as one
+`reference-slot`. Normalize exact repeated addresses to count `unique-references`.
+When both are measured:
 
 ~~~text
-ORCHESTRA RUN
-Strategy: <strategy>
-Roles: <roles>
-Agents: <count>
-Lanes: <lane role/model fork_turns; or Sol-only>
-Escalations: <count>
-Retries: <count>
-Review: used | not-used
-Packets: worker files=<count>, ranges=<count>, evidence-items=<count>; reviewer files=<count>, ranges=<count>, evidence-items=<count>
-Host metrics: input_tokens=<value> cached_input_tokens=<value> output_tokens=<value> tool_calls=<value> duration=<value> | unavailable/not-exposed
-Result: complete | partial | blocked | rethink
-Verification: pass | fail | partial (<evidence>)
+duplicate-reference-slots = reference-slots - unique-references
 ~~~
 
-Record host metrics only when the host exposes the exact values. Otherwise write
-`unavailable/not-exposed`; never infer, parse private transcripts, or extend the
-inspector as a workaround. This record is intentionally lightweight and is not a
-workflow engine or state machine.
+This is a narrow structural proxy. It does not measure repeated prose, semantic
+duplication, tokens, or savings. Handoff chars, targeted reads, repeated reads, and
+expansions are reported only when the exact payload/tool evidence makes them
+observable; otherwise use `unavailable/not-tracked`.
+
+Review ROI records invocation reason, cycles, material issues, whether the result
+changed, and whether correction was required. The owner derives `result-changed=yes`
+only when review causes correction, rethink, or a different terminal decision, and
+`correction-required=yes` only from `fix-first`; the context-clean reviewer never
+compares against an owner conclusion it did not receive. Parallel ROI records why work
+was parallelized, independent task count, and unique useful outputs. Do not infer value
+from agent count alone. A reviewer is not an owner switch or owner escalation; reviewer
+and worker counts exclude the owner.
+
+Host token/context metrics are included only when directly exposed: input, cached
+input, output, reasoning tokens, tool calls, and duration. Otherwise write
+`unavailable/not-exposed`; never infer, parse private transcripts, or build a workaround.
 
 ## Maintainer verification
 
-From the repository root, run:
+From the canonical repository root:
 
 ~~~sh
 python3 -m unittest discover -s tests -v
 sh scripts/install-agents.sh --check
+sh -n scripts/install-agents.sh
+sh -n scripts/inspect-agent-runtime.sh
 git diff --check
 git status --short
 git diff --stat
 ~~~
 
-For pre-install validation without touching user configuration, point the installer at
-a temporary directory, then compare source and installed plugin trees using the normal
-local plugin installation workflow. The contract tests cover manifest versioning,
-exact role pins, all seven strategies, both modifiers, Context Packets, stop rules,
-dry-run examples, fail-closed installer fixtures, and shell syntax.
+For pre-install validation without mutating user configuration, install profiles to a
+temporary target directory and compare exact files. Verify source, marketplace copy,
+installed cache, and Codex plugin listing separately; a source pass is not installation
+proof.
