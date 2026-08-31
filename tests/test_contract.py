@@ -28,6 +28,7 @@ PACKET_FIELDS = (
     "ROLE",
     "OBJECTIVE",
     "CURRENT STATE (authoritative facts)",
+    "VERIFIED CONTEXT",
     "CONSTRAINTS / INVARIANTS",
     "ALLOWED SCOPE",
     "FORBIDDEN ACTIONS",
@@ -42,6 +43,7 @@ HANDOFF_FIELDS = (
     "Hard constraints:",
     "Changed files:",
     "Diff references:",
+    "Verified context:",
     "Test / verification results:",
     "Created artifacts:",
     "Important invariants:",
@@ -54,17 +56,19 @@ class OrchestraContractTests(unittest.TestCase):
     def test_manifest_contract(self):
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(manifest["name"], "orchestra")
-        self.assertRegex(manifest["version"], r"^0\.5\.0(?:\+[0-9A-Za-z.-]+)?$")
+        self.assertRegex(manifest["version"], r"^0\.6\.0(?:\+[0-9A-Za-z.-]+)?$")
         self.assertEqual(manifest["skills"], "./skills/")
         self.assertEqual(manifest["repository"], "https://github.com/vldklsnkv/orchestra")
         self.assertEqual(manifest["interface"]["displayName"], "Orchestra")
         self.assertIn("adaptive", manifest["description"].lower())
         self.assertIn("single-agent-first", manifest["description"].lower())
         self.assertIn("context", manifest["description"].lower())
+        self.assertIn("budget", manifest["description"].lower())
         long_description = manifest["interface"]["longDescription"].lower()
         self.assertIn("sol or terra", long_description)
         self.assertIn("sticky owner", long_description)
-        self.assertNotIn("sol / high owner by default", long_description)
+        self.assertIn("fast", long_description)
+        self.assertIn("verified context", long_description)
 
         for field in ("composerIcon", "logo"):
             asset = manifest["interface"][field]
@@ -133,7 +137,7 @@ class OrchestraContractTests(unittest.TestCase):
         self.assertIn("SELECTIVE ROUTE", skill)
         self.assertIn("gpt-5.6-sol with high reasoning", skill)
         self.assertIn("One agent is a valid Orchestra result", skill)
-        self.assertIn("do not\ncall an LLM merely to classify", skill)
+        self.assertIn("do not call an LLM merely to classify", " ".join(skill.split()))
         for strategy in STRATEGIES:
             self.assertIn(f"`{strategy}`", skill)
         for role in (
@@ -144,7 +148,7 @@ class OrchestraContractTests(unittest.TestCase):
             self.assertIn(role, contracts)
             self.assertIn(role, operations)
 
-        self.assertIn("Mandatory independent review", skill)
+        self.assertIn("Review value and independent review", skill)
         self.assertIn("orchestrated-parallel", skill)
         self.assertIn("Luna failure is not required", skill)
         self.assertIn("Do not jump to a speculative", skill)
@@ -156,7 +160,7 @@ class OrchestraContractTests(unittest.TestCase):
         scenarios = {
             "simple": "## 1. Simple one-file bug -> solo owner-only",
             "connected": "## 2. Connected medium feature -> solo owner-only",
-            "high_risk": "## 3. High-risk auth migration -> solo + owner-review",
+            "high_risk": "## 3. High-risk auth migration -> solo + high-value review",
             "parallel": "## 4. Five independent adapters -> parallel",
             "non_parallel": "## 5. Non-decomposable refactor -> solo, no fake parallelism",
         }
@@ -188,13 +192,17 @@ class OrchestraContractTests(unittest.TestCase):
         self.assertIn("Topology: owner-only", slices["non_parallel"])
         self.assertIn("does not itself create a worker", slices["non_parallel"])
 
-    def test_high_risk_review_precedes_owner_only(self):
+    def test_review_value_is_independent_from_high_risk(self):
         skill = (SKILL / "SKILL.md").read_text()
-        decision = skill[skill.index("## Adaptive-v2 decision order"):]
-        high_risk = decision.index("If the result is high risk")
-        owner_only = decision.index("Otherwise, if work is sequentially coupled")
-        self.assertLess(high_risk, owner_only)
-        self.assertIn("choose `owner-review`", decision[high_risk:owner_only])
+        operations = (REFERENCES / "operations.md").read_text()
+        combined = " ".join((skill + operations).split()).lower()
+        self.assertIn("review value: low|medium|high", combined)
+        self.assertIn("high domain risk alone must not force review", combined)
+        self.assertIn("high risk alone must not force review", combined)
+        self.assertIn("objective focused tests", combined)
+        self.assertIn("explicit review request or high independent review value", combined)
+        self.assertIn("medium scope with high review value may", combined)
+        self.assertNotIn("if the result is high risk, choose `owner-review`", combined)
 
     def test_owner_selection_is_qualitative_sticky_and_graph_independent(self):
         skill = (SKILL / "SKILL.md").read_text()
@@ -204,7 +212,8 @@ class OrchestraContractTests(unittest.TestCase):
 
         for signal in (
             "uncertainty",
-            "risk / blast radius",
+            "risk",
+            "blast radius",
             "verifiability",
             "task nature / reasoning",
         ):
@@ -217,17 +226,17 @@ class OrchestraContractTests(unittest.TestCase):
         self.assertIn("initial owner: sol | terra", combined)
         self.assertIn("select `terra` only when all of these hold", combined)
         self.assertIn(
-            "low uncertainty, low/medium risk or blast radius, high/objective verifiability,"
-            " and mechanical/bounded task nature",
+            "low uncertainty, low/medium domain risk, isolated/local blast radius,"
+            " high/objective verifiability, and mechanical/bounded task nature",
             combined,
         )
         self.assertIn("`sol` is selected for high uncertainty", combined)
         self.assertIn(
-            "high cost of a wrong interpretation, or high risk with less-than-high verifiability",
+            "high cost of a wrong interpretation, high domain risk or blast radius with less-than-high verifiability",
             combined,
         )
         self.assertIn("mixed or unresolved signals conservatively fall back to `sol`", combined)
-        self.assertIn("owner selection does not inspect decomposability", combined)
+        self.assertIn("owner selection does not inspect strategy, topology, execution budget", combined)
         self.assertIn("strategy and executor execute it; they do not reselect", combined)
         self.assertIn("immutable between explicit escalation gates", combined)
 
@@ -256,20 +265,188 @@ class OrchestraContractTests(unittest.TestCase):
             self.assertIn(f"| {case} |", matrix)
 
         exact_rows = (
-            "| Low-uncertainty mechanical | uncertainty=low; risk/blast radius=low; verifiability=objective; task nature=mechanical/bounded | Terra | solo; no reviewer | Terra owns the complete run |",
+            "| Low-uncertainty mechanical | uncertainty=low; domain risk=low; blast radius=isolated; verifiability=objective; task nature=mechanical/bounded | Terra | solo; no reviewer | Terra owns the complete run |",
             "| High-uncertainty architecture | uncertainty=high; reasoning-heavy architecture/problem-framing; verifiability=partial | Sol | solo | Sol owns research through verification |",
-            "| Small high-blast/hard-to-verify | risk/blast radius=high; verifiability=low | Sol | existing `owner-review` policy | reviewer does not replace owner or count as escalation |",
-            "| Large clear mechanical | uncertainty=low; risk/blast radius=medium; verifiability=objective; task nature=mechanical/bounded | Terra | solo; no reviewer | Terra owns the large bounded implementation |",
+            "| Small high-blast/hard-to-verify | domain risk=high; blast radius=systemic; verifiability=low; review value=high | Sol | `owner-review` from independent value | reviewer does not replace owner or count as escalation |",
+            "| Large clear mechanical | uncertainty=low; domain risk=medium; blast radius=isolated; verifiability=objective; task nature=mechanical/bounded | Terra | solo; no reviewer | Terra owns the large bounded implementation |",
             "| Terra escalation | materially higher uncertainty or architectural fork appears | Terra | same topology; owner changes only at evidence gate | `Terra -> evidence-addressed ARTIFACT HANDOFF -> Sol takeover`; Sol stays owner with no downgrade |",
             "| Sol completes small implementation | low scope but mixed interpretation | Sol | solo; no reviewer | completes without Terra handoff |",
             "| Genuine parallel decomposition | independent deliverables; non-overlap; no intermediate dependency | Sol | existing `orchestrated-parallel` path | parallel workers remain; owner does not change |",
-            "| Reviewer boundary | any owner with mandatory independent review | Sol or Terra | owner-review | reviewer never replaces owner and `owner_escalations=0` |",
+            "| Reviewer boundary | any owner with explicit request or named safety/contract boundary with high independent value | Sol or Terra | owner-review | reviewer never replaces owner and `owner_escalations=0` |",
         )
         for row in exact_rows:
             self.assertIn(row, matrix)
 
         self.assertIn("selected-owner synthesis", (SKILL / "SKILL.md").read_text())
         self.assertIn("Terra, the selected owner, synthesizes once", dry_runs)
+
+    def test_execution_budget_and_verification_matrix_covers_ten_cases(self):
+        skill = (SKILL / "SKILL.md").read_text()
+        operations = (REFERENCES / "operations.md").read_text()
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+        dry_runs = (REFERENCES / "dry-runs.md").read_text()
+        combined = " ".join((skill + operations + contracts).split()).lower()
+
+        for dimension in (
+            "change size",
+            "blast radius",
+            "behavior impact",
+            "novelty/uncertainty evidence",
+            "reversibility",
+            "production-vs-diagnostic",
+            "new-behavior-vs-instrumentation",
+            "refactor-vs-additive",
+            "verified context",
+            "context freshness",
+            "execution budget",
+            "verification floor",
+            "review value",
+        ):
+            self.assertIn(dimension, combined)
+        for value in ("tiny", "small", "medium", "large"):
+            self.assertIn(value, combined)
+        for level in ("l0", "l1", "l2", "l3"):
+            self.assertIn(level, combined)
+        route_start = skill.index("SELECTIVE ROUTE")
+        route_open = skill.rindex("~~~", 0, route_start)
+        route_end = skill.index("~~~", route_start)
+        route = skill[route_start:route_end]
+        route_lines = [
+            line for line in skill[route_open + 3 : route_end].splitlines()
+            if line.strip() and line.strip() != "SELECTIVE ROUTE"
+        ]
+        self.assertLessEqual(len(route_lines), 14)
+        self.assertEqual(route.count("Parallel:"), 1)
+        self.assertNotIn("Parallelizable:", route)
+        for field in (
+            "Risk:",
+            "Scope:",
+            "Blast radius:",
+            "Behavior impact:",
+            "Context freshness:",
+            "Execution budget:",
+            "Initial owner:",
+            "Primary:",
+            "Parallel:",
+            "Verification plan:",
+            "Verification floor:",
+            "Review value:",
+            "Reviewer:",
+            "Escalation condition:",
+        ):
+            self.assertIn(field, route)
+
+        contracts_route_start = contracts.index("SELECTIVE ROUTE")
+        contracts_route_open = contracts.index("~~~", contracts_route_start)
+        contracts_route_end = contracts.index("~~~", contracts_route_open + 3)
+        self.assertNotIn(
+            "Parallelizable:",
+            contracts[contracts_route_start:contracts_route_end],
+        )
+        for failure_class in (
+            "code",
+            "harness",
+            "infrastructure",
+            "flaky/non-deterministic",
+            "specification/architecture",
+        ):
+            self.assertIn(failure_class, combined)
+
+        matrix_start = dry_runs.index("## 14. Execution-budget and verification matrix")
+        matrix = dry_runs[matrix_start:]
+        headings = (
+            "### Case 1: high risk + tiny shadow-only + verified -> FAST",
+            "### Case 2: high risk + systemic production -> HEAVY",
+            "### Case 3: low/medium risk + large cross-component -> not FAST",
+            "### Case 4: small + unknown architecture -> at least STANDARD",
+            "### Case 5: FAST unexpected test failure -> controlled escalation",
+            "### Case 6: relevant staged/unstaged path change invalidates exact-HEAD context",
+            "### Case 7: high risk objectively testable tiny mechanical -> reviewer not required",
+            "### Case 8: medium scope + high review value -> review without HEAVY",
+            "### Case 9: cold expensive infrastructure + cheap falsifier -> cheap first",
+            "### Case 10: cheap pass + critical invariant needs integration -> continue to L2",
+        )
+        for heading in headings:
+            self.assertIn(heading, matrix)
+
+        self.assertIn("expected high risk, small/local/shadow-only behavior", matrix)
+        self.assertIn("Clast-like parser/scorer shadow-instrumentation regression", matrix)
+        self.assertIn("FAST, one sticky owner", matrix)
+        self.assertIn("no reviewer unless new evidence", matrix)
+        self.assertIn("Execution budget: FAST", matrix)
+        self.assertIn("Execution budget: HEAVY", matrix)
+        self.assertIn("Previous execution budget: FAST", matrix)
+        self.assertIn("Execution budget: STANDARD", matrix)
+        self.assertIn("Context freshness: stale", matrix)
+        self.assertIn("review value: low", matrix.lower())
+        self.assertIn("Review value: high", matrix)
+        self.assertIn("cheap falsifier", matrix.lower())
+        self.assertIn("continue to L2", matrix)
+        self.assertIn("FAST never skips an L2 or L3 requirement", matrix)
+
+    def test_verified_context_and_budget_escalation_are_non_persistent_and_monotonic(self):
+        skill = (SKILL / "SKILL.md").read_text()
+        operations = (REFERENCES / "operations.md").read_text()
+        contracts = (REFERENCES / "role-contracts.md").read_text()
+        combined = " ".join((skill + operations + contracts).split()).lower()
+
+        for field in (
+            "repo/worktree",
+            "base",
+            "relevant files",
+            "frozen artifacts",
+            "relevant config",
+            "architecture map/invariants",
+            "evidence timestamp/source",
+        ):
+            self.assertIn(field, combined)
+        self.assertIn("not in a persistent database", combined)
+        self.assertIn("minimal freshness proof", combined)
+        self.assertIn(
+            "same repo/worktree plus exact head proves source freshness only with a relevant-path worktree/index check showing those paths unchanged",
+            combined,
+        )
+        self.assertIn(
+            "proven descendant requires checking relevant-path changes since base plus the current worktree/index",
+            combined,
+        )
+        self.assertIn("hash only identity-sensitive", combined)
+        self.assertIn("do not hash everything by default", combined)
+        self.assertIn("relevant staged or unstaged path change makes context stale", combined)
+        self.assertIn("forbids reuse", combined)
+        self.assertIn("restores normal preflight", combined)
+        self.assertIn("do not reread known architecture", combined)
+        self.assertIn("fast -> standard -> heavy", combined)
+        self.assertIn("do not pre-escalate", combined)
+        self.assertIn("never silently downgrade", combined)
+        self.assertIn("new route/budget declaration", combined)
+        self.assertIn("naming the evidence", combined)
+
+    def test_exact_head_worktree_change_invalidates_context_reuse(self):
+        documents = (
+            (ROOT / "README.md").read_text()
+            + (SKILL / "SKILL.md").read_text()
+            + (REFERENCES / "operations.md").read_text()
+            + (REFERENCES / "role-contracts.md").read_text()
+            + (REFERENCES / "dry-runs.md").read_text()
+        )
+        normalized = " ".join(documents.split()).lower()
+        self.assertIn(
+            "exact-head proof plus relevant staged/unstaged path changed in worktree/index",
+            normalized,
+        )
+        self.assertIn(
+            "relevant staged or unstaged path change makes the exact-head context stale and forbids reuse",
+            normalized,
+        )
+        self.assertIn(
+            "same repo/worktree plus exact head proves source freshness only with a relevant-path worktree/index check",
+            normalized,
+        )
+        self.assertIn(
+            "a proven descendant requires checking relevant-path changes since base plus the current worktree/index",
+            normalized,
+        )
 
     def test_owner_telemetry_separates_switches_workers_and_reviewers(self):
         skill = (SKILL / "SKILL.md").read_text()
@@ -448,6 +625,13 @@ class OrchestraContractTests(unittest.TestCase):
             "Topology:",
             "Routing:",
             "Owner:",
+            "Execution budget:",
+            "Verification:",
+            "Review:",
+            "Result:",
+        ):
+            self.assertIn(field, skill)
+        for field in (
             "Agent invocations:",
             "Retries:",
             "Review ROI:",
@@ -455,10 +639,8 @@ class OrchestraContractTests(unittest.TestCase):
             "Handoffs:",
             "Context:",
             "Host metrics:",
-            "Result:",
-            "Verification:",
         ):
-            self.assertIn(field, combined)
+            self.assertIn(field, operations)
         self.assertIn("unavailable/not-exposed", combined)
         self.assertIn("unavailable/not-tracked", combined)
         normalized = " ".join(combined.split()).lower()

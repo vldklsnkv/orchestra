@@ -4,8 +4,10 @@ Orchestra is an adaptive orchestration plugin for Codex. Its default `adaptive-v
 mode is single-agent-first: one sticky initial owner (`Sol` or `Terra`) keeps connected
 research, implementation, tests, correction, and verification in one lane. Primary Sol /
 High is the Router and final acceptor for every graph without duplicating that lane.
-Additional agents are used only for mandatory independent review, true parallelism, or
-a named specialist/context advantage.
+Before graph freeze, the Router records independent scope dimensions, verified-context
+freshness, a qualitative execution budget, verification floor, and review value.
+Additional agents are used only for material independent information value, true
+parallelism, or a named specialist/context advantage.
 
 The previous v0.4 strategy-first behavior remains selectable as `legacy` for
 compatibility and controlled comparison.
@@ -19,32 +21,108 @@ compatibility and controlled comparison.
 4. Sequentially coupled coding work usually stays with one owner.
 5. Orchestra optimizes quality, safety, cost, latency, and context duplication—not only
    tokens.
-6. Required review and verification are never removed merely to save resources.
+6. Required invariants and verification floors are never removed merely to save
+   resources; domain risk does not by itself choose the machinery.
 
-The Router applies qualitative owner signals and a separate topology/review decision
-before tools. It classifies uncertainty, risk/blast radius, verifiability, task nature /
-reasoning requirement, complexity, decomposability, parallelizability,
-independent-review need, and manager need. Obvious cases do not use another LLM just for
-classification.
+The Router applies qualitative owner signals and separate scope, budget, verification,
+topology, and review-value decisions before tools. It classifies domain risk, change size,
+blast radius, behavior impact, novelty/uncertainty evidence, reversibility, context
+freshness, uncertainty, verifiability, task nature/reasoning, complexity,
+decomposability, parallelism, independent-review value, and manager need. Obvious cases
+do not use another LLM just for classification.
 
-Initial owner is `Terra` only when uncertainty is low, risk/blast radius is low or
-medium, verifiability is high/objective, and the task is mechanical/bounded. `Sol` is
-the conservative choice for high uncertainty, reasoning-heavy architecture or
-problem-framing, high cost of a wrong interpretation, high risk with less-than-high
-verifiability, or mixed/unresolved signals. Complexity is telemetry only and never
-selects the owner; owner selection is independent from topology and review.
+Initial owner is `Terra` only when uncertainty is low, domain risk is low/medium, blast
+radius is isolated/local, verifiability is high/objective, and the task is
+mechanical/bounded. `Sol` is the conservative choice for high uncertainty,
+reasoning-heavy architecture or problem-framing, high cost of a wrong interpretation,
+high domain risk or blast radius with less-than-high verifiability, or mixed/unresolved
+signals. Complexity is telemetry only and never selects the owner; owner selection is
+independent from strategy, topology, budget, verification floor, and review value.
 
 | Task shape | Default topology |
 |---|---|
 | Simple or connected standard work | `owner -> verification -> stop` |
-| High-risk work | `owner -> artifact handoff -> independent reviewer -> gate` |
+| Explicit review request or high independent review value | `owner -> artifact handoff -> independent reviewer -> gate` |
 | Truly independent deliverables | `orchestrator -> workers -> synthesis` |
 | Named expertise/context boundary | `owner -> bounded specialist -> owner verification` |
 | Dynamic decomposition/synthesis | conditional manager topology |
 
-High risk includes privacy/security, protected data, irreversible operations, auth,
+Domain risk is high for privacy/security, protected data, irreversible operations, auth,
 payments or financial correctness, destructive migrations, critical invariants, and
-explicit user requests for independent review.
+other user-defined high-impact boundaries. High risk alone does not force review: review
+value is selected independently.
+
+## Independent scope and verified context
+
+Before graph freeze, classify `Change size: tiny|small|medium|large` from the combination
+of files/subsystems, contracts/schema, production-versus-diagnostic boundary, new behavior
+versus instrumentation, and refactor-versus-additive shape; LOC is never sufficient
+alone. Record `Blast radius: isolated|local|cross-component|systemic`, separately from
+domain risk; `Behavior impact: none|shadow-only|internal|user-visible|data-affecting`;
+`Novelty/uncertainty evidence: known architecture, analogous verified path, previous
+verified iteration, or new subsystem/unknown behavior/external dependency`; and
+`Reversibility: trivial|localized|stateful/migration|destructive/high-cost`.
+
+Keep a minimal `VERIFIED CONTEXT` record in the current task or handoff, not a database:
+
+```text
+VERIFIED CONTEXT
+Repo/worktree: exact repository and worktree path
+Base: base HEAD or proven descendant
+Freshness proof: same repo/worktree + exact HEAD plus relevant-path worktree/index check showing unchanged, or proven descendant plus relevant-path since-base and current worktree/index checks
+Relevant files: path identities; hash only where file identity matters
+Frozen artifacts: identities/hashes only where artifact identity matters, or none
+Relevant config: paths/keys; hash/version only where identity matters
+Architecture map/invariants: canonical addresses and required invariants
+Evidence timestamp/source (optional): command/task/handoff; timestamp is supporting only
+Context freshness: fresh | stale | not established
+```
+
+Same repo/worktree plus exact HEAD proves source freshness only when a relevant-path
+worktree/index check shows those paths unchanged. A known descendant requires checking
+relevant-path changes since base plus the current worktree/index. Hash only identity-sensitive
+files, config, or artifacts; do not hash everything by default. A relevant staged or
+unstaged path change makes context stale and forbids reuse; normal preflight resumes.
+Timestamp or copied prose never proves freshness; known architecture need not be reread after
+proof.
+
+## Execution budgets, verification, and review value
+
+After risk, scope, owner/model, and strategy classification, choose an independent
+`Execution budget: FAST|STANDARD|HEAVY`. Risk determines confidence and required
+invariants; scope and evidence determine machinery. No single signal, especially risk or
+LOC, may choose the budget alone.
+
+- `FAST`: tiny/small, isolated/local, bounded or shadow-only/objective work, known
+  architecture, high reversibility, and sufficient fresh context. High domain risk can
+  still be FAST when output identity and focused invariants are objective.
+- `STANDARD`: medium/interacting or production-internal work, moderate uncertainty, or
+  focused evidence beyond the FAST contract.
+- `HEAVY`: large/systemic or cross-component production work, schema/migration/stateful
+  or destructive work, substantial architecture uncertainty, or a broad floor.
+
+Verification is a cheap-first ladder: `L0` static sanity/diff/deterministic reasoning;
+`L1` focused test/compile/contract; `L2` targeted integration/runtime/representative
+fixture; `L3` full corpus/full build/broad regression/multiple environments. Derive the
+floor from concrete invariants. FAST never skips an L2/L3 requirement, and cold/warm
+infrastructure changes order only, never permission to omit the floor.
+
+`Review value: low|medium|high` is distinct from risk. Review is mandatory only for an
+explicit request or a named safety/contract boundary with high independent information
+value. Fresh review is selected for material independent information value such as ambiguity,
+plausible interpretations, non-objective verification, a high-impact contract/judgment,
+adversarial need, or bias risk. Medium scope with high review value may use review
+without HEAVY. High risk alone does not require a reviewer for a tiny mechanical change
+with objective focused tests/output identity.
+
+The explicit FAST contract is:
+
+```text
+minimal freshness check -> one primary owner/executor -> bounded change -> L0 -> focused L1 -> manager/owner diff acceptance -> done
+```
+
+Unless invariant floor or new evidence escalates it, FAST has no deep architecture
+reconstruction, broad corpus, multiple worker roles, reviewer, or heavy artifact ceremony.
 
 ## Strategies and legacy fallback
 
@@ -62,14 +140,16 @@ The existing strategies remain stable:
 
 In `adaptive-v2`, connected work stays `solo` even when it is medium or high complexity;
 complexity alone does not justify delegation or change owner. Strategy executes the
-Router-selected immutable graph and cannot reselect owner, parallelism, or review. In
+Router-selected immutable graph and cannot reselect owner, parallelism, budget,
+verification floor, or review. In
 `legacy`, v0.4 behavior remains available: Sol manages, Luna/Terra implements selected
 work, Sol verifies, and fresh Sol review composes as a modifier. Fallback is explicit,
 never silent.
 
 The initial owner is sticky. If Terra cannot continue because materially higher
-uncertainty, an architectural/strategic fork, unexpected high-risk blast radius,
-invalidated framing, or inability to continue confidently appears, the only takeover is
+uncertainty, an architectural/strategic fork, an unexpected high domain-risk or
+blast-radius finding, invalidated framing, or inability to continue confidently appears,
+the only takeover is
 `Terra -> evidence-addressed ARTIFACT HANDOFF -> Sol takeover`; Sol then remains owner.
 Sol-to-Terra is only bounded worker delegation for a large, isolated, low-uncertainty
 mechanical workload whose benefit exceeds handoff overhead, so it is neither escalation
@@ -85,6 +165,7 @@ acceptance criteria
 hard constraints
 changed files
 diff references
+verified context
 test / verification results
 created artifacts
 important invariants
@@ -105,6 +186,13 @@ paraphrased. Every packet still records all safety/scope boundaries; no unrecord
 constraint may control an allowed action, and inherited turns are supplementary
 context only. Reviewers always use `none`.
 
+Verification starts with the cheapest falsifier. After a failed check, classify it as
+`code`, `harness`, `infrastructure`, `flaky/non-deterministic`, or
+`specification/architecture`; apply the smallest discriminating check and rerun only
+the minimum required level. Evidence-driven escalation is monotonic `FAST -> STANDARD
+-> HEAVY`; scope expansion, unexpected behavior, hidden dependencies, flaky evidence,
+new worker risk, or an unproven invariant must be named in a new route declaration.
+
 ## Independent review loop
 
 A fresh Sol / High reviewer gets the original task contract, acceptance criteria,
@@ -124,11 +212,12 @@ stops instead of creating an infinite review loop.
 ## Honest telemetry
 
 The terminal `ORCHESTRA RUN` records actual mode, strategy, topology, owner signals,
-`initial_owner`, `owner_selection_reason`, `owner_escalations`, `owner_switches`,
-`reviewer_count`, `worker_count`, spawned-agent count (including a spawned Terra owner),
-roles, retries, review ROI,
-parallel ROI, handoff/context proxies, result, and verification. Review is independent
-from owner selection and never replaces the owner or counts as escalation.
+scope, context freshness, starting/final execution budget and budget escalations,
+verification plan/floor, review value, `initial_owner`, `owner_selection_reason`,
+`owner_escalations`, `owner_switches`, `reviewer_count`, `worker_count`, spawned-agent
+count (including a spawned Terra owner), roles, retries, review ROI, parallel ROI,
+handoff/context proxies, result, and verification. Review is independent from owner
+selection and never replaces the owner or counts as escalation.
 
 Review ROI records why review ran, cycles, material issues, whether the result changed,
 and whether correction was required. Parallel ROI records why work was parallelized,
@@ -189,9 +278,11 @@ sh -n scripts/inspect-agent-runtime.sh
 git diff --check
 ```
 
-The contract suite covers adaptive routing, high-risk review, real parallelism, no fake
-parallelism, bounded targeted re-review, artifact handoff, legacy fallback, telemetry,
-role pins, context inheritance, installer safety, and all seven strategies.
+The contract suite covers adaptive routing, independent scope and verified context,
+qualitative budgets, cheap-first verification and escalation, review value, real
+parallelism, no fake parallelism, bounded targeted re-review, artifact handoff, legacy
+fallback, telemetry, role pins, context inheritance, installer safety, and all seven
+strategies.
 
 Orchestra is released under the MIT License. The original role and safety tooling are
 adapted from [Sol Advisor](https://github.com/DannyMac180/sol-advisor) v0.6.0; see
