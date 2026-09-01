@@ -327,15 +327,55 @@ returns control to the owner.
 3. `ship` terminates immediately.
 4. `rethink` stops corrections and returns to architecture/user.
 5. `fix-first` permits one bounded correction by the same owner.
-6. Owner re-verifies and sends a new fresh reviewer a targeted re-review packet. The
-   affected surface and regression perimeter are checked before broader context.
-7. A third review cycle is allowed only when correction evidence reveals a new material
-   risk/defect class. Otherwise stop; repeated wording or summary drift is not a new
-   class.
+6. Before implementing the correction, the owner records its exact scope and applies the
+   post-review materiality gate below; after correction, the owner confirms the class
+   against the actual diff and evidence.
+7. The class selects exactly one assurance action: fresh full review, targeted independent
+   re-review, or deterministic owner verification.
 
-Do not use a new reviewer merely to reset the loop. Any correction invalidates the old
-verdict. The owner never sends self-confidence, a desired verdict, or conclusion-framed
-reasoning.
+| Class | Semantic impact | Required action |
+|---|---|---|
+| `MATERIAL` | Changes intended production behavior or an external contract; changes architecture, security/safety properties, or experiment hypothesis/definitions; changes evidence interpretation in a way that changes the main conclusion, crosses reviewed surfaces, or invalidates a critical boundary; changes acceptance criteria or main conclusion/verdict; or leaves a substantive implementation path without a bounded regression perimeter. It invalidates the full review or a critical boundary. | Bounded correction -> owner verification -> fresh full independent review |
+| `TARGETED` | Changes one isolated substantive claim, function, boundary, test assumption, or isolated artifact interpretation while the accepted evidence meaning and main conclusion remain unchanged, restoring already-reviewed semantics. Architecture, intended behavior/contract, safety properties, acceptance criteria, and neighboring paths remain unchanged; affected surface and regression perimeter are bounded. | Bounded correction -> owner verification -> targeted independent re-review of the affected surface and regression perimeter |
+| `NON-MATERIAL` | Comments, wording, formatting, typo, report phrasing, provenance description, deterministic manifest/hash regeneration, path/name metadata, or already-established factual representation with no substantive conclusion change | Bounded correction -> deterministic owner verification -> terminate without a reviewer |
+
+Materiality is semantic, not proportional to line count: a one-line security, threshold,
+or decision change can be `MATERIAL`; a large generated diff can be `NON-MATERIAL` only
+when deterministic verification proves semantic equivalence. When ambiguous, use the
+higher-assurance class justified by risk; a high-risk boundary may escalate `TARGETED` to
+`MATERIAL`, but no change is automatically material. `MATERIAL` takes precedence whenever
+one of its critical-boundary or invalidation conditions applies.
+
+For `TARGETED`, the re-review packet contains the original relevant finding, exact
+correction, minimal diff/context, affected surface, regression perimeter, and an explicit
+bounded question. It does not restart the full task. For `NON-MATERIAL`, deterministic
+verification must address the actual correction: for example raw-log comparison for
+provenance, content identity plus regenerated-hash validation for manifests, or exact diff
+inspection for comments/wording.
+
+Record the gate visibly:
+
+~~~text
+POST-REVIEW MATERIALITY
+Finding: <precise finding>
+Correction scope: <exact bounded correction>
+Semantic impact: <what reviewed meaning or behavior changes or remains unchanged>
+Class: MATERIAL | TARGETED | NON-MATERIAL
+Invalidated scope: <exact reviewed scope affected>
+Action: fresh full independent review | targeted independent re-review | manager deterministic verification
+Full reviewer: required | not required
+~~~
+
+The prior verdict remains valid for unchanged reviewed scope; only the semantically affected
+scope is invalidated. The first full review is normal. A second full review is allowed after
+a material correction. A third full review requires all three facts: the second reviewer
+found a new material defect, its correction changes substantive state, and the owner records
+why targeted verification is insufficient. This is an escalation gate rather than a numeric
+cap, so a real critical defect can still receive another full review. Repeated wording,
+provenance, deterministic artifact, or summary corrections do not qualify.
+
+Do not use a new reviewer merely to reset the loop. The owner never sends self-confidence,
+a desired verdict, or conclusion-framed reasoning.
 
 ## Sticky owner and explicit escalation
 

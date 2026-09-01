@@ -322,9 +322,13 @@ MINIMUM SOURCE ADDRESSES
 - <paths, symbols, and ranges needed to test critical claims>
 
 REVIEW SCOPE
-Pass: initial | targeted re-review
+Pass: initial | full re-review | targeted re-review
+Original relevant finding: <required for targeted re-review>
+Exact correction: <required for targeted re-review>
+Minimal diff / context: <required for targeted re-review>
 Affected surface first: <required for targeted re-review>
 Regression perimeter: <required for targeted re-review>
+Explicit review question: <required for targeted re-review>
 
 FORBIDDEN ACTIONS / CONTEXT
 - Do not edit, implement fixes, or broaden scope.
@@ -343,12 +347,22 @@ CONTEXT USED: files=<count>, ranges=<count>, evidence-items=<count>, expansions=
 
 The reviewer inspects actual files and evidence rather than trusting the handoff's
 conclusions. `ship` terminates. `fix-first` allows the same owner one bounded correction
-and a new fresh targeted re-review; the affected surface and regression perimeter are
-checked before broader context. `rethink` returns to architecture. The default loop is
-initial review plus one correction and one targeted re-review. Another cycle requires a
-new material defect class exposed by the correction; otherwise stop. Any correction
-invalidates the previous verdict. Review is independent from owner selection and never
-replaces the owner or counts as owner escalation.
+after the owner applies the post-review materiality gate from `SKILL.md` and
+`operations.md`. `MATERIAL` receives a fresh full review. `TARGETED` receives a fresh
+targeted re-review that checks the original relevant finding, exact correction, affected
+surface, regression perimeter, and explicit question before any expansion. `NON-MATERIAL`
+receives deterministic owner verification and no reviewer. `rethink` returns to
+architecture.
+
+The owner, not another agent, classifies materiality from semantic impact rather than diff
+size. `MATERIAL` takes precedence whenever a critical-boundary or full-review invalidation
+condition applies; `TARGETED` is available only when the correction restores unchanged
+reviewed semantics inside a bounded affected surface and regression perimeter. A verdict
+remains valid for unchanged reviewed scope; only the scope affected by the correction is
+invalidated. A third full review requires a new material defect found by the second
+reviewer, a substantive-state correction, and an explicit owner record explaining why
+targeted verification is insufficient. Review is independent from owner selection and
+never replaces the owner or counts as owner escalation.
 
 Use observed sandbox policy: if read-only is not observed and hard isolation is needed,
 stop review; otherwise record exact before/after state and never claim enforced

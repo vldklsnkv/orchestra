@@ -1,6 +1,6 @@
 {
   "name": "orchestra",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Adaptive single-agent-first routing with independent scope, verified context, qualitative budgets, and pinned specialists",
   "author": {
     "name": "Vlad Kalashnikov",

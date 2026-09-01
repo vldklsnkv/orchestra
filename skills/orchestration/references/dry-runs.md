@@ -299,12 +299,82 @@ allowed before causal evidence.
 
 Initial `ship` terminates immediately with one review cycle.
 
-For `fix-first`, the same owner makes one bounded correction, re-verifies, and creates a
-new ARTIFACT HANDOFF. A fresh reviewer receives `Pass: targeted re-review`, checks the
-affected surface and regression perimeter first, then returns `ship`, `fix-first`, or
-`rethink`. Another cycle is forbidden unless the correction exposed a new material
-defect class. Repeated summary or wording drift triggers stop/checkpoint, not another
+For `fix-first`, the same owner makes one bounded correction after recording the
+post-review materiality decision. Assurance follows semantic impact, not diff size.
+
+### Case 1: material architecture correction
+
+An architecture conclusion used the wrong lineage assumption. The correction changes
+evidence interpretation and the main conclusion.
+
+`Class: MATERIAL` -> bounded correction -> owner verification -> fresh full independent
+review. The architecture conclusion is the invalidated scope.
+
+### Case 2: comment typo
+
+A reviewer finds an incorrect comment while production behavior and the reviewed
+implementation remain unchanged.
+
+`Class: NON-MATERIAL` -> comment correction -> manager deterministic verification ->
+`SHIP`. Full reviewer: not required.
+
+### Case 3: artifact hash regeneration
+
+Artifact content is unchanged and only its manifest hashes are regenerated.
+
+`Class: NON-MATERIAL` -> manager verifies content identity and regenerated hashes -> no
 reviewer.
+
+### Case 4: provenance wording
+
+The report says `run skipped`; the raw log proves `run interrupted during build`. The
+experimental result, evidence interpretation, and conclusion do not change.
+
+`Class: NON-MATERIAL` -> manager verifies the raw log and corrected provenance -> no full
+reviewer.
+
+### Case 5: local substantive fix
+
+A reviewer finds a bug in one isolated function. The correction restores the unchanged
+reviewed behavior contract; its neighboring paths, architecture, safety properties,
+acceptance criteria, and main conclusion remain valid.
+
+`Class: TARGETED` -> bounded correction -> owner verification -> targeted independent
+re-review. The packet includes the original finding, exact function diff, relevant tests,
+regression perimeter, and the explicit question whether the isolated bug is fixed.
+
+### Case 6: second reviewer finds a new material defect
+
+The second full reviewer finds a new security invariant violation. Its correction changes
+substantive state, and the owner records why a scoped check cannot validate the affected
+architecture.
+
+`Class: MATERIAL` -> correction -> a third full review is allowed with the recorded
+escalation reason.
+
+### Case 7: second reviewer finds another minor issue
+
+The second reviewer finds only a wording or provenance issue that does not change the
+substantive state or conclusion.
+
+`Class: NON-MATERIAL` -> deterministic manager verification -> no third full review.
+
+### Case 8: tiny diff with huge semantic impact
+
+A one-line security decision or production threshold change alters externally observable
+behavior.
+
+`Class: MATERIAL` despite diff size -> fresh full independent review.
+
+### Case 9: large generated diff with no semantic impact
+
+A manifest and generated artifacts change many lines, while deterministic comparison
+proves source content and effective behavior are identical.
+
+`Class: NON-MATERIAL` -> deterministic equivalence and hash verification -> no reviewer.
+
+In every case the prior verdict remains valid for unchanged reviewed scope. The gate
+invalidates only the surface semantically affected by the correction.
 
 ## 12. Legacy fallback
 

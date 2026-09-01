@@ -201,13 +201,15 @@ not the owner's confidence or desired verdict.
 
 - `ship`: terminate immediately.
 - `rethink`: return to architecture or the user.
-- `fix-first`: the same owner makes one bounded correction, re-verifies, and sends a
-  new fresh reviewer a targeted re-review of the affected surface and regression
-  perimeter.
+- `fix-first`: the same owner records correction scope and semantic materiality, makes
+  one bounded correction, and re-verifies it.
 
-The default maximum is initial review plus one correction and one targeted re-review.
-One extra cycle requires a newly exposed material defect class; otherwise Orchestra
-stops instead of creating an infinite review loop.
+The post-review gate chooses proportional assurance: `MATERIAL` corrections receive a
+fresh full review, `TARGETED` corrections receive a scoped independent re-review, and
+`NON-MATERIAL` corrections receive deterministic owner verification with no new reviewer.
+The prior verdict remains valid outside the correction's invalidated scope. A third full
+review requires a new material defect from the second reviewer, a substantive-state
+correction, and an explicit reason targeted verification is insufficient.
 
 ## Honest telemetry
 
@@ -280,7 +282,7 @@ git diff --check
 
 The contract suite covers adaptive routing, independent scope and verified context,
 qualitative budgets, cheap-first verification and escalation, review value, real
-parallelism, no fake parallelism, bounded targeted re-review, artifact handoff, legacy
+parallelism, no fake parallelism, post-review materiality, bounded targeted re-review, artifact handoff, legacy
 fallback, telemetry, role pins, context inheritance, installer safety, and all seven
 strategies.
 

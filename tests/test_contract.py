@@ -56,7 +56,7 @@ class OrchestraContractTests(unittest.TestCase):
     def test_manifest_contract(self):
         manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(manifest["name"], "orchestra")
-        self.assertRegex(manifest["version"], r"^0\.6\.0(?:\+[0-9A-Za-z.-]+)?$")
+        self.assertRegex(manifest["version"], r"^0\.6\.1(?:\+[0-9A-Za-z.-]+)?$")
         self.assertEqual(manifest["skills"], "./skills/")
         self.assertEqual(manifest["repository"], "https://github.com/vldklsnkv/orchestra")
         self.assertEqual(manifest["interface"]["displayName"], "Orchestra")
@@ -495,7 +495,7 @@ class OrchestraContractTests(unittest.TestCase):
         normalized = " ".join(contracts.split()).lower()
         self.assertIn("canonical file and artifact references remain the source of truth", normalized)
 
-    def test_review_loop_is_targeted_and_bounded(self):
+    def test_review_loop_uses_post_review_materiality_gate(self):
         skill = (SKILL / "SKILL.md").read_text()
         contracts = (REFERENCES / "role-contracts.md").read_text()
         operations = (REFERENCES / "operations.md").read_text()
@@ -504,16 +504,81 @@ class OrchestraContractTests(unittest.TestCase):
 
         self.assertIn("`ship`: terminate review immediately", skill.lower())
         self.assertIn("same owner makes one bounded correction", combined)
-        self.assertIn("targeted re-review", combined)
+        self.assertIn("post-review materiality", combined)
+        for correction_class in ("`material`", "`targeted`", "`non-material`"):
+            self.assertIn(correction_class, combined)
+        self.assertIn("materiality follows semantic impact and invalidated scope, never diff size", combined)
+        self.assertIn("post-review materiality", skill.lower())
+        self.assertIn("correction scope:", combined)
+        self.assertIn("semantic impact:", combined)
+        self.assertIn("invalidated scope:", combined)
+        self.assertIn("fresh full independent review", combined)
+        self.assertIn("targeted independent re-review", combined)
+        self.assertIn("manager deterministic verification", combined)
         self.assertIn("affected surface and regression perimeter", combined)
-        self.assertIn("initial review plus one correction and one targeted re-review", combined)
-        self.assertIn("new material risk or defect class", combined)
+        self.assertIn("original relevant finding", contracts.lower())
+        self.assertIn("exact correction", contracts.lower())
+        self.assertIn("minimal diff / context", contracts.lower())
+        self.assertIn("explicit review question", contracts.lower())
+        self.assertIn("`material` takes precedence", combined)
+        self.assertIn("restoring already-reviewed semantics", combined)
+        self.assertIn("intended behavior/contract", combined)
+        self.assertIn("verdict remains valid for unchanged reviewed scope", combined)
+        self.assertNotIn("any correction invalidates", combined)
+        for third_review_condition in (
+            "second reviewer finds a new material defect",
+            "correction changes substantive state",
+            "why targeted verification is insufficient",
+        ):
+            self.assertIn(third_review_condition, combined)
         self.assertIn("never run an infinite reviewer loop", skill.lower())
 
         reviewer_return = contracts[contracts.index("EXACT VERDICT RETURN"):]
         self.assertNotIn("RESULT CHANGED:", reviewer_return)
         self.assertIn("The owner computes review ROI", skill)
         self.assertIn("correction-required=yes` only for `fix-first`", skill)
+
+    def test_post_review_materiality_scenarios(self):
+        dry_runs = (REFERENCES / "dry-runs.md").read_text()
+        cases = {
+            "Case 1: material architecture correction": "fresh full independent review",
+            "Case 2: comment typo": "manager deterministic verification",
+            "Case 3: artifact hash regeneration": "regenerated hashes",
+            "Case 4: provenance wording": "run interrupted during build",
+            "Case 5: local substantive fix": "targeted independent",
+            "Case 6: second reviewer finds a new material defect": "third full review is allowed",
+            "Case 7: second reviewer finds another minor issue": "no third full review",
+            "Case 8: tiny diff with huge semantic impact": "despite diff size",
+            "Case 9: large generated diff with no semantic impact": "deterministic equivalence",
+        }
+
+        for heading, expected in cases.items():
+            start = dry_runs.index(f"### {heading}")
+            end = dry_runs.find("\n### ", start + 4)
+            section = dry_runs[start: end if end != -1 else None]
+            self.assertIn(expected, " ".join(section.split()))
+
+        normalized = " ".join(dry_runs.split()).lower()
+        self.assertIn("prior verdict remains valid for unchanged reviewed scope", normalized)
+        self.assertIn("invalidates only the surface semantically affected", normalized)
+
+    def test_material_and_targeted_interpretation_boundaries_are_distinct(self):
+        skill = (SKILL / "SKILL.md").read_text()
+        operations = (REFERENCES / "operations.md").read_text()
+        combined = " ".join((skill + operations).split()).lower()
+
+        self.assertIn(
+            "evidence interpretation in a way that changes the main conclusion, crosses reviewed surfaces, or invalidates a critical boundary",
+            combined,
+        )
+        self.assertIn(
+            "isolated artifact interpretation while the accepted evidence meaning and main conclusion remain unchanged",
+            combined,
+        )
+        self.assertNotIn(
+            "evidence interpretation, acceptance criteria, or the main conclusion/verdict",
+            combined,
+        )
 
     def test_legacy_fallback_preserves_seven_strategies(self):
         operations = (REFERENCES / "operations.md").read_text()

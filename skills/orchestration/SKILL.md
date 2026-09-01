@@ -259,17 +259,61 @@ or a lossy summary for canonical artifacts. The next agent uses this handoff,
 targeted reads, compact expansion when needed, and full history only under the rare `all`
 gate above.
 
-## Independent review and bounded loop
+## Independent review and post-review materiality gate
 
 With `Independent review: yes`, the owner verifies the diff, scope, tests, and artifacts,
 then gives a fresh Sol / High reviewer (`fork_turns: none`) the original contract,
 handoff, exact evidence, and minimum source addresses—never owner confidence or a desired
 verdict. The reviewer never implements and returns exactly `ship`, `fix-first`, or
 `rethink`: `ship`: terminate review immediately; `rethink` returns to architecture/user;
-`fix-first` permits the same owner to make one bounded correction followed by targeted
-re-review of the affected surface and regression perimeter. The default is one review plus
-one correction/re-review; one extra cycle requires new material risk or defect class
-evidence. Never run an infinite reviewer loop.
+`fix-first` permits the same owner to make one bounded correction only after the owner
+records the finding, correction scope, semantic impact, invalidated reviewed scope,
+materiality class, and next action. Materiality follows semantic impact and invalidated
+scope, never diff size:
+
+- `MATERIAL`: the correction changes intended production behavior or an external contract;
+  changes architecture, security/safety, experiment hypothesis or definitions, evidence
+  interpretation in a way that changes the main conclusion, crosses reviewed surfaces,
+  or invalidates a critical boundary; changes acceptance criteria or the main
+  conclusion/verdict; or leaves a substantive implementation path without a bounded
+  regression perimeter. It invalidates the full review or a critical boundary. After
+  correction and owner verification, run a fresh full independent review.
+- `TARGETED`: the correction changes one isolated substantive claim, function, boundary,
+  test assumption, or isolated artifact interpretation while the accepted evidence meaning
+  and main conclusion remain unchanged, restoring already-reviewed semantics. Its
+  architecture, intended behavior/contract, safety properties, acceptance criteria, and
+  neighboring paths remain unchanged, and its affected surface plus regression perimeter
+  are bounded. After correction and owner verification, run a targeted independent
+  re-review using the original relevant finding, exact correction, minimal diff/context,
+  affected surface, regression perimeter, and one explicit review question.
+- `NON-MATERIAL`: the correction is limited to comments, wording, formatting, typos,
+  report phrasing, provenance description, deterministic manifest/hash regeneration,
+  path/name metadata, or already-established factual representation, and cannot change a
+  substantive conclusion. After correction, deterministic owner verification closes the
+  invalidated scope and terminates without another reviewer.
+
+If classification is ambiguous, preserve the higher-assurance class justified by domain
+risk; a high-risk boundary may escalate `TARGETED` to `MATERIAL`. Never classify a change
+as non-material because it is small, nor material because it is large. `MATERIAL` takes
+precedence whenever one of its critical-boundary or invalidation conditions applies. Emit:
+
+~~~text
+POST-REVIEW MATERIALITY
+Finding: <precise finding>
+Correction scope: <exact bounded correction>
+Semantic impact: <what reviewed meaning or behavior changes or remains unchanged>
+Class: MATERIAL | TARGETED | NON-MATERIAL
+Invalidated scope: <exact reviewed scope affected>
+Action: fresh full independent review | targeted independent re-review | manager deterministic verification
+Full reviewer: required | not required
+~~~
+
+Reviewer verdict remains valid for unchanged reviewed scope; only the scope semantically
+affected by a correction is invalidated. The first full review is normal and a second full
+review is allowed after a material correction. A third full review is not automatic: it is
+allowed only when the second reviewer finds a new material defect, the correction changes
+substantive state, and the owner records why targeted verification is insufficient. This is
+an escalation gate, not a hard review cap. Never run an infinite reviewer loop.
 
 ## Stop, retry, and escalate deliberately
 
